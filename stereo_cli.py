@@ -3,9 +3,7 @@
 import argparse
 import torch
 import cv2
-import numpy as np
 from model import SAStereoCNN2
-from transforms import test_transform_fn
 import matplotlib.pyplot as plt
 import os
 
@@ -26,21 +24,21 @@ def process_stereo_pair(left_img_path, right_img_path, output_path='output.png',
     else:
         raise FileNotFoundError(f"Checkpoint file not found at {checkpoint_path}")
     model.eval()
-    # Read and preprocess images
+    
     left_img = cv2.imread(left_img_path)
     right_img = cv2.imread(right_img_path)
 
-    # Generate disparity map
+    
     with torch.no_grad():
         disparity, _ = model.inference(left_img, right_img)
 
-    # Convert disparity to numpy and normalize for visualization
+    
     disparity_np = disparity.squeeze().cpu().numpy()
 
     if raw:
         save_raw_disparity(disparity_np, output_path)
     else:
-        # Create grayscale disparity map
+    
         plt.figure(figsize=(10, 5))
         plt.imshow(disparity_np, cmap='gray')
         plt.axis('off')
