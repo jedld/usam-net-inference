@@ -2,6 +2,12 @@
 
 This project implements a stereo depth estimation system using a deep learning approach with self-attention mechanisms. The system processes stereo image pairs to generate depth maps, providing 3D understanding of scenes from 2D images.
 
+This is a simplified inference only version from:
+
+https://github.com/jedld/usam-net-depth-model
+
+If you wish to train models it is best to look at the above repository instead.
+
 ## Features
 
 - Self-attention enhanced stereo depth estimation
