@@ -1,0 +1,12 @@
+opencv-python
+numpy
+ipywidgets
+tqdm
+git+https://github.com/facebookresearch/segment-anything.git
+pycocotools
+matplotlib
+torchsummary
+wandb
+pandas
+gradio
+psutil
