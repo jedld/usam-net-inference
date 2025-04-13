@@ -1,0 +1,13 @@
+opencv-python
+numpy
+ipywidgets
+tqdm
+torch
+torchvision
+git+https://github.com/facebookresearch/segment-anything.git
+pycocotools
+matplotlib
+torchsummary
+wandb
+pandas
+gradio
