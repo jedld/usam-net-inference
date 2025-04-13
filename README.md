@@ -61,6 +61,16 @@ The model uses a combination of:
 - Segment Anything Model (SAM) integration
 - Custom stereo matching network
 
+## Running on the Jetson Orin Nano under Docker 
+
+```
+docker build . -t usam-net:latest
+```
+
+```
+docker run --runtime nvidia -it usam-net 
+```
+
 ## License
 
 MIT License
