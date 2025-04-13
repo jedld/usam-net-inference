@@ -11,3 +11,4 @@ torchsummary
 wandb
 pandas
 gradio
+psutil
