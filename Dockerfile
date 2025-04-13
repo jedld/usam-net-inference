@@ -8,4 +8,4 @@ WORKDIR /app
 
 RUN pip install -r requirements.txt
 
-CMD ["python", "stereo_cli.py", "--left_img", "left.png", "--right_img", "right.png", "--output", "output.png"]
+CMD ["python3", "stereo_cli.py", "--left_img", "left.png", "--right_img", "right.png", "--output", "output.png"]
