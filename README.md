@@ -71,6 +71,31 @@ docker build . -t usam-net:latest
 docker run --runtime nvidia -it usam-net 
 ```
 
+## Training the model from scratch
+
+After downloading the DrivingStereo dataset extract it to the data directory, make sure
+that it is of the following structure:
+
+```
+── data
+│   ├── calib
+│   ├── test
+│   │   ├── depth_maps
+│   │   ├── disparity_maps
+│   │   ├── left_images
+│   │   ├── left_masks
+│   │   ├── right_images
+│   │   └── right_masks
+│   └── train
+│       ├── depth_maps
+│       ├── disparity_maps
+│       ├── left_images
+│       ├── left_masks
+│       ├── left_sky_masks
+│       ├── right_images
+│       └── right_masks
+```
+
 ## License
 
 MIT License
@@ -96,7 +121,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ## Acknowledgments
-
+- A few sample images from the DrivingStereo dataset https://drivingstereo-dataset.github.io/
 - Facebook Research for the Segment Anything Model
 - PyTorch team for the deep learning framework
 - Gradio team for the web interface framework
