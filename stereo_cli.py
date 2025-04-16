@@ -11,13 +11,15 @@ import os
 import time
 import psutil
 import gc
+from model_trt import StereoRT
+import torch_tensorrt
 
 def get_memory_usage():
     """Get current memory usage of the process in MB"""
     process = psutil.Process(os.getpid())
     return process.memory_info().rss / 1024 / 1024
 
-def process_stereo_pair(left_img_path, right_img_path, output_path='output.png', benchmark=False):
+def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='output.png', benchmark=False):
     # Initialize model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
@@ -27,22 +29,25 @@ def process_stereo_pair(left_img_path, right_img_path, output_path='output.png',
     
     # Model loading time
     model_load_start = time.time()
-    model = SAStereoCNN2(device)
-    model.to(device)
-    
-    # Load checkpoint
-    checkpoint_path = 'stereo_cnn_stereo_cnn_sa_baseline.checkpoint'
-    if os.path.exists(checkpoint_path):
-        print("Loading model checkpoint...")
-        checkpoint = torch.load(checkpoint_path)
-        model.load_state_dict(checkpoint)
-    else:
-        raise FileNotFoundError(f"Checkpoint file not found at {checkpoint_path}")
-    
+    if model_type == 'baseline':
+        model = SAStereoCNN2(device)
+        model.to(device)
+        
+        # Load checkpoint
+        checkpoint_path = 'stereo_cnn_stereo_cnn_sa_baseline.checkpoint'
+        if os.path.exists(checkpoint_path):
+            print("Loading model checkpoint...")
+            checkpoint = torch.load(checkpoint_path)
+            model.load_state_dict(checkpoint)
+        else:
+            raise FileNotFoundError(f"Checkpoint file not found at {checkpoint_path}")
+        
+        model.eval()
+    elif model_type == 'stereoRT':
+        model = StereoRT('model_trt_32.ts')
+
     model_load_time = time.time() - model_load_start
     model_memory = get_memory_usage() - initial_memory
-    
-    model.eval()
     
     # Read and preprocess images
     preprocess_start = time.time()
@@ -57,21 +62,26 @@ def process_stereo_pair(left_img_path, right_img_path, output_path='output.png',
     
     # Generate disparity map
     inference_start = time.time()
-    with torch.no_grad():
-        disparity, _ = model.inference(left_img, right_img)
+    if model_type == 'baseline':
+        with torch.no_grad():
+            disparity, _ = model.inference(left_img, right_img)
+    elif model_type == 'stereoRT':
+        with torch.no_grad():
+            disparity = model.inference(left_img, right_img)
     inference_time = time.time() - inference_start
     
     # Post-processing time
     postprocess_start = time.time()
     # Convert disparity to numpy and normalize for visualization
     disparity_np = disparity.squeeze().cpu().numpy()
-    disparity_np = (disparity_np - disparity_np.min()) / (disparity_np.max() - disparity_np.min())
+    if disparity_np.max() > disparity_np.min():
+        disparity_np = (disparity_np - disparity_np.min()) / (disparity_np.max() - disparity_np.min())
     
     # Create colormap visualization
     plt.figure(figsize=(10, 5))
     plt.imshow(disparity_np, cmap='magma')
     plt.axis('off')
-    plt.savefig(output_path, bbox_inches='tight', pad_inches=0)
+    #plt.savefig(output_path, bbox_inches='tight', pad_inches=0)
     plt.close()
     postprocess_time = time.time() - postprocess_start
     
@@ -98,6 +108,7 @@ def process_stereo_pair(left_img_path, right_img_path, output_path='output.png',
 
 def main():
     parser = argparse.ArgumentParser(description='Generate disparity map from stereo image pair')
+    parser.add_argument('model_type', help='Model type: stereoRt or baseline')
     parser.add_argument('left_img', help='Path to the left image')
     parser.add_argument('right_img', help='Path to the right image')
     parser.add_argument('--output', '-o', default='output.png', help='Output path for the disparity map (default: output.png)')
@@ -106,7 +117,7 @@ def main():
     args = parser.parse_args()
     
     try:
-        process_stereo_pair(args.left_img, args.right_img, args.output, args.benchmark)
+        process_stereo_pair(args.model_type, args.left_img, args.right_img, args.output, args.benchmark)
     except Exception as e:
         print(f"Error: {str(e)}")
         return 1
