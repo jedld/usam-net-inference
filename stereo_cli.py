@@ -78,17 +78,40 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
     if left_img is None or right_img is None:
         raise ValueError("Failed to load one or both input images")
 
+    # Apply preprocessing separately to ensure it's timed correctly
+    if model_type == 'baseline':
+        # Extract preprocessing from baseline model's inference method
+        left_tensor = test_transform_fn(left_img).unsqueeze(0).to(device)
+        right_tensor = test_transform_fn(right_img).unsqueeze(0).to(device)
+    elif model_type == 'stereoRT':
+        # StereoRT model handles preprocessing internally during inference,
+        # but we need to ensure time is measured properly
+        left_tensor = left_img
+        right_tensor = right_img
+    elif model_type == 'cuda':
+        # For CUDA model, we'll preprocess in inference method since the forward method
+        # expects a different format than what we prepared
+        left_tensor = left_img
+        right_tensor = right_img
 
     preprocess_time = time.time() - preprocess_start
     
     # Generate disparity map
     inference_start = time.time()
-    if model_type in ['baseline', 'cuda']:
+    if model_type == 'baseline':
         with torch.no_grad():
+            # Use preprocessed tensors instead of raw images
+            disparity, _ = model(left_tensor, right_tensor)
+    elif model_type == 'cuda':
+        with torch.no_grad():
+            # For CUDA model, use the inference method that handles raw images
+            # to avoid argument mismatches with the forward method
             disparity, _ = model.inference(left_img, right_img)
     elif model_type == 'stereoRT':
         with torch.no_grad():
+            # StereoRT models usually expect raw images 
             disparity = model.inference(left_img, right_img)
+    
     inference_time = time.time() - inference_start
     
     # Post-processing time

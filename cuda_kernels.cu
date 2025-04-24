@@ -11,6 +11,18 @@
 #define CHECK_CONTIGUOUS(x) TORCH_CHECK(x.is_contiguous(), #x " must be contiguous")
 #define CHECK_INPUT(x) CHECK_CUDA(x); CHECK_CONTIGUOUS(x)
 
+// ================ UTILITY FUNCTIONS ================
+__device__ float atomicMaxFloat(float* address, float val) {
+    int* address_as_int = (int*)address;
+    int old = *address_as_int, assumed;
+    do {
+        assumed = old;
+        old = atomicCAS(address_as_int, assumed,
+            __float_as_int(fmaxf(val, __int_as_float(assumed))));
+    } while (assumed != old);
+    return __int_as_float(old);
+}
+
 // GPU kernel for 2D convolution
 __global__ void conv2d_kernel(
     const float* input, const float* weight, const float* bias,
@@ -270,67 +282,135 @@ torch::Tensor batch_norm_forward_cuda(torch::Tensor input, torch::Tensor weight,
     return output;
 }
 
-// GPU kernel for self-attention
-__global__ void self_attention_kernel(
-    const float* input, const float* query_weight, const float* query_bias,
-    const float* key_weight, const float* key_bias,
-    const float* value_weight, const float* value_bias,
-    float* output, int batch_size, int channels, int height, int width) {
+// Block size for flash attention
+#define BLOCK_SIZE_M 32  // Number of rows
+#define BLOCK_SIZE_N 32  // Number of columns
+#define BLOCK_SIZE_K 32  // Internal block size
+
+// Flash attention kernel - computes attention more efficiently with tiling
+__global__ void flash_attention_kernel(
+    const float* query,    // [B, H, W, C]
+    const float* key,      // [B, H, W, C]
+    const float* value,    // [B, H, W, C]
+    float* output,         // [B, H, W, C]
+    const float* input,    // Original input for residual connection [B, C, H, W]
+    int batch_size, int height, int width, int channels,
+    float scaling_factor) {
     
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    int spatial_size = height * width;
-    int total_size = batch_size * channels * spatial_size;
+    // Calculate spatial size and configure shared memory
+    const int spatial_size = height * width;
+    const int num_heads = 1; // For simplicity, using single head
+    const int head_dim = channels;
     
-    if (idx >= total_size) return;
+    // Shared memory for blocks of Q, K, V
+    __shared__ float s_query[BLOCK_SIZE_M][BLOCK_SIZE_K];
+    __shared__ float s_key[BLOCK_SIZE_K][BLOCK_SIZE_N];
+    __shared__ float s_value[BLOCK_SIZE_N][BLOCK_SIZE_K];
     
-    int w = idx % width;
-    int h = (idx / width) % height;
-    int c = (idx / (width * height)) % channels;
-    int b = idx / (width * height * channels);
+    // Each thread block handles a block of the output matrix
+    const int block_row = blockIdx.x * BLOCK_SIZE_M;
+    const int block_col = blockIdx.y * BLOCK_SIZE_N;
     
-    // Compute query, key, value for current position
-    int reduced_channels = channels / 8;
-    float q_val = 0.0f, k_val = 0.0f, v_val = 0.0f;
+    // Thread indices
+    const int thread_row = threadIdx.x;
+    const int thread_col = threadIdx.y;
     
-    // Compute query value for current position
-    for (int ic = 0; ic < channels; ++ic) {
-        int input_idx = ((b * channels + ic) * height + h) * width + w;
-        int weight_idx = c * channels + ic;
-        q_val += input[input_idx] * query_weight[weight_idx];
+    // Batch index
+    const int b = blockIdx.z;
+    
+    // Accumulator for output
+    float acc[BLOCK_SIZE_M] = {0.0f};
+    
+    // Track maximum value for numerical stability
+    float m_i[BLOCK_SIZE_M] = {-INFINITY};
+    float l_i[BLOCK_SIZE_M] = {0.0f};
+    
+    // Process blocks of K dimension
+    for (int bk = 0; bk < (spatial_size + BLOCK_SIZE_K - 1) / BLOCK_SIZE_K; ++bk) {
+        // Load Q, K, V blocks into shared memory
+        const int k_offset = bk * BLOCK_SIZE_K;
+        
+        // Load Q block
+        if (block_row + thread_row < spatial_size && k_offset + thread_col < head_dim) {
+            int q_idx = b * spatial_size * head_dim + (block_row + thread_row) * head_dim + (k_offset + thread_col);
+            s_query[thread_row][thread_col] = query[q_idx];
+        } else {
+            s_query[thread_row][thread_col] = 0.0f;
+        }
+        
+        // Load K block (transposed)
+        if (k_offset + thread_row < spatial_size && block_col + thread_col < head_dim) {
+            int k_idx = b * spatial_size * head_dim + (k_offset + thread_row) * head_dim + (block_col + thread_col);
+            s_key[thread_row][thread_col] = key[k_idx];
+        } else {
+            s_key[thread_row][thread_col] = 0.0f;
+        }
+        
+        // Load V block
+        if (k_offset + thread_row < spatial_size && block_col + thread_col < head_dim) {
+            int v_idx = b * spatial_size * head_dim + (k_offset + thread_row) * head_dim + (block_col + thread_col);
+            s_value[thread_row][thread_col] = value[v_idx];
+        } else {
+            s_value[thread_row][thread_col] = 0.0f;
+        }
+        
+        __syncthreads();
+        
+        // Calculate attention scores for this block
+        for (int k = 0; k < BLOCK_SIZE_K; ++k) {
+            // Safe to calculate only if we're within bounds
+            if (block_row + thread_row < spatial_size && k_offset + k < spatial_size) {
+                float qk = s_query[thread_row][k] * s_key[k][thread_col] * scaling_factor;
+                
+                // Numerically stable update for softmax
+                float m_prev = m_i[thread_row];
+                float m_new = fmaxf(m_prev, qk);
+                
+                float exp_new = expf(qk - m_new);
+                float exp_old = l_i[thread_row] * expf(m_prev - m_new);
+                
+                // Update running softmax
+                l_i[thread_row] = exp_old + exp_new;
+                m_i[thread_row] = m_new;
+                
+                // Update accumulator
+                acc[thread_row] = (acc[thread_row] * exp_old + s_value[k][thread_col] * exp_new) / l_i[thread_row];
+            }
+        }
+        
+        __syncthreads();
     }
-    if (query_bias) q_val += query_bias[c];
     
-    // Compute key value for current position
-    for (int ic = 0; ic < channels; ++ic) {
-        int input_idx = ((b * channels + ic) * height + h) * width + w;
-        int weight_idx = c * channels + ic;
-        k_val += input[input_idx] * key_weight[weight_idx];
+    // Write back results
+    if (block_row + thread_row < spatial_size && block_col + thread_col < head_dim) {
+        int out_idx = b * spatial_size * head_dim + (block_row + thread_row) * head_dim + (block_col + thread_col);
+        
+        // Convert back to BCHW format and add residual connection
+        int input_idx = (b * channels + block_col + thread_col) * height * width + (block_row + thread_row);
+        output[out_idx] = acc[thread_row] + input[input_idx];
     }
-    if (key_bias) k_val += key_bias[c];
+}
+
+// Helper function to compute QKV projections
+torch::Tensor compute_qkv_projections(torch::Tensor input, torch::Tensor weight, torch::Tensor bias) {
+    // Reshape for projection: [B, C, H, W] -> [B, C, H*W] -> [B, H*W, C]
+    auto batch_size = input.size(0);
+    auto channels = input.size(1);
+    auto height = input.size(2);
+    auto width = input.size(3);
+    auto spatial_size = height * width;
     
-    // Compute value for current position
-    for (int ic = 0; ic < channels; ++ic) {
-        int input_idx = ((b * channels + ic) * height + h) * width + w;
-        int weight_idx = c * channels + ic;
-        v_val += input[input_idx] * value_weight[weight_idx];
+    auto reshaped = input.reshape({batch_size, channels, spatial_size}).permute({0, 2, 1});
+    
+    // Apply linear projection
+    auto output = torch::matmul(reshaped, weight.t());
+    
+    if (bias.defined()) {
+        output = output + bias.unsqueeze(0).unsqueeze(0);
     }
-    if (value_bias) v_val += value_bias[c];
     
-    // Compute attention
-    float attention = 0.0f;
-    float sum_exp = 0.0f;
-    
-    // Simplified attention calculation (note: in a real implementation this would need to be more sophisticated)
-    for (int i = 0; i < spatial_size; ++i) {
-        float a = expf(q_val * k_val);
-        sum_exp += a;
-        attention += a * v_val;
-    }
-    
-    attention /= sum_exp;
-    
-    // Add skip connection
-    output[idx] = attention + input[idx];
+    // Return in [B, H*W, C] format for attention calculation
+    return output;
 }
 
 torch::Tensor self_attention_forward_cuda(torch::Tensor input, torch::Tensor query_weight, torch::Tensor query_bias,
@@ -348,26 +428,48 @@ torch::Tensor self_attention_forward_cuda(torch::Tensor input, torch::Tensor que
     int channels = input.size(1);
     int height = input.size(2);
     int width = input.size(3);
+    int spatial_size = height * width;
     
-    auto output = torch::empty_like(input);
+    // Compute Q, K, V projections efficiently using matrix multiplication
+    auto query = compute_qkv_projections(input, query_weight, query_bias);
+    auto key = compute_qkv_projections(input, key_weight, key_bias);
+    auto value = compute_qkv_projections(input, value_weight, value_bias);
     
-    // Set grid and block dimensions for CUDA kernel
-    const int threads = 256;
-    const int blocks = (batch_size * channels * height * width + threads - 1) / threads;
+    // Prepare output tensor - use same shape as input
+    auto output = torch::empty_like(query);
     
-    // Launch kernel
-    self_attention_kernel<<<blocks, threads>>>(
-        input.data_ptr<float>(),
-        query_weight.data_ptr<float>(), 
-        query_bias.defined() ? query_bias.data_ptr<float>() : nullptr,
-        key_weight.data_ptr<float>(), 
-        key_bias.defined() ? key_bias.data_ptr<float>() : nullptr,
-        value_weight.data_ptr<float>(), 
-        value_bias.defined() ? value_bias.data_ptr<float>() : nullptr,
-        output.data_ptr<float>(), batch_size, channels, height, width
+    // Set scaling factor for attention scores (prevents softmax saturation)
+    float scaling_factor = 1.0f / sqrtf(channels);
+    
+    // Configure grid and blocks for flash attention
+    dim3 threads(BLOCK_SIZE_M, BLOCK_SIZE_N);
+    dim3 grid(
+        (spatial_size + BLOCK_SIZE_M - 1) / BLOCK_SIZE_M,
+        (channels + BLOCK_SIZE_N - 1) / BLOCK_SIZE_N,
+        batch_size
     );
     
-    return output;
+    // Launch flash attention kernel
+    flash_attention_kernel<<<grid, threads>>>(
+        query.data_ptr<float>(),
+        key.data_ptr<float>(),
+        value.data_ptr<float>(),
+        output.data_ptr<float>(),
+        input.data_ptr<float>(),
+        batch_size, height, width, channels,
+        scaling_factor
+    );
+    
+    // Check for errors
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        printf("CUDA Error in flash attention: %s\n", cudaGetErrorString(err));
+    }
+    
+    // Reshape output back to BCHW format
+    auto reshaped_output = output.permute({0, 2, 1}).reshape({batch_size, channels, height, width});
+    
+    return reshaped_output;
 }
 
 // GPU kernel for sigmoid activation function
