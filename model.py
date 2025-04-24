@@ -5,10 +5,18 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torchvision.models import resnet18
-from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
+# from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 from transforms import transform_disparity_fn, transform_fn, transform_seg_fn, test_transform_fn, test_transform_seg_fn
 import cv2
 import torch.nn as nn
+
+# Try to import TensorRT, but make it optional
+try:
+    import torch_tensorrt
+    TENSORRT_AVAILABLE = True
+except ImportError:
+    TENSORRT_AVAILABLE = False
+    print("TensorRT not available. StereoRT model will not be available.")
 
 class SelfAttention(nn.Module):
     def __init__(self, in_channels):

@@ -17,6 +17,9 @@ class StereoRT:
             left_tensor = self.transform(left_image).unsqueeze(0).to(self.device, non_blocking=True)
             right_tensor = self.transform(right_image).unsqueeze(0).to(self.device, non_blocking=True)
             input_tensor = torch.cat((left_tensor, right_tensor), dim=1)
+            
+            # Convert to half precision (fp16) for TensorRT
+            input_tensor = input_tensor.half()  # Important: Convert to fp16
 
         self.stream.synchronize()  # Ensure transform is complete before inference
         return input_tensor

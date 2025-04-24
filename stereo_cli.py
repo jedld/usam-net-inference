@@ -14,12 +14,20 @@ import gc
 from model_trt import StereoRT
 import torch_tensorrt
 
+# Add CUDA implementation import
+try:
+    from stereo_cnn_cuda_wrapper import StereoCNNCuda
+    CUDA_EXTENSION_AVAILABLE = True
+except ImportError:
+    CUDA_EXTENSION_AVAILABLE = False
+    print("CUDA extension not available. Run 'python setup.py install' to build it.")
+
 def get_memory_usage():
     """Get current memory usage of the process in MB"""
     process = psutil.Process(os.getpid())
     return process.memory_info().rss / 1024 / 1024
 
-def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='output.png', benchmark=False):
+def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='output.png', benchmark=False, model_path=None, force_checkpoint=False):
     # Initialize model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
@@ -44,7 +52,20 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
         
         model.eval()
     elif model_type == 'stereoRT':
-        model = StereoRT('model_trt_32.ts')
+        # Use specified model path or default
+        trt_model_path = model_path if model_path else 'model_trt_32.ts'
+        print(f"Loading TensorRT model from: {trt_model_path}")
+        model = StereoRT(trt_model_path)
+    elif model_type == 'cuda' and CUDA_EXTENSION_AVAILABLE:
+        checkpoint_path = 'stereo_cnn_stereo_cnn_sa_baseline.checkpoint'
+        if not os.path.exists(checkpoint_path):
+            raise FileNotFoundError(f"Checkpoint file not found at {checkpoint_path}")
+        model = StereoCNNCuda(checkpoint_path=checkpoint_path, device=device, force_checkpoint=force_checkpoint)
+    else:
+        if model_type == 'cuda' and not CUDA_EXTENSION_AVAILABLE:
+            raise ImportError("CUDA extension not available. Run 'python setup.py install' to build it.")
+        else:
+            raise ValueError(f"Unsupported model type: {model_type}. Use 'baseline', 'stereoRT', or 'cuda'.")
 
     model_load_time = time.time() - model_load_start
     model_memory = get_memory_usage() - initial_memory
@@ -62,7 +83,7 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
     
     # Generate disparity map
     inference_start = time.time()
-    if model_type == 'baseline':
+    if model_type in ['baseline', 'cuda']:
         with torch.no_grad():
             disparity, _ = model.inference(left_img, right_img)
     elif model_type == 'stereoRT':
@@ -81,7 +102,7 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
     plt.figure(figsize=(10, 5))
     plt.imshow(disparity_np, cmap='magma')
     plt.axis('off')
-    #plt.savefig(output_path, bbox_inches='tight', pad_inches=0)
+    plt.savefig(output_path, bbox_inches='tight', pad_inches=0)
     plt.close()
     postprocess_time = time.time() - postprocess_start
     
@@ -93,6 +114,7 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
     
     if benchmark:
         print("\nBenchmark Results:")
+        print(f"Model Type: {model_type}")
         print(f"Model Loading Time: {model_load_time:.2f} seconds")
         print(f"Preprocessing Time: {preprocess_time:.2f} seconds")
         print(f"Inference Time: {inference_time:.2f} seconds")
@@ -108,16 +130,18 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
 
 def main():
     parser = argparse.ArgumentParser(description='Generate disparity map from stereo image pair')
-    parser.add_argument('model_type', help='Model type: stereoRt or baseline')
+    parser.add_argument('model_type', help='Model type: stereoRT, baseline, or cuda')
     parser.add_argument('left_img', help='Path to the left image')
     parser.add_argument('right_img', help='Path to the right image')
     parser.add_argument('--output', '-o', default='output.png', help='Output path for the disparity map (default: output.png)')
     parser.add_argument('--benchmark', '-b', action='store_true', help='Show benchmarking information')
+    parser.add_argument('--model-path', type=str, help='Custom path to the TensorRT model file (for stereoRT)')
+    parser.add_argument('--force-checkpoint', action='store_true', help='Force CUDA model to use checkpoint file directly')
     
     args = parser.parse_args()
     
     try:
-        process_stereo_pair(args.model_type, args.left_img, args.right_img, args.output, args.benchmark)
+        process_stereo_pair(args.model_type, args.left_img, args.right_img, args.output, args.benchmark, args.model_path, args.force_checkpoint)
     except Exception as e:
         print(f"Error: {str(e)}")
         return 1

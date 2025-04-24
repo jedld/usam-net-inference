@@ -1,3 +1,73 @@
 __pycache__/
 output.png
 cantor_notebook/
+
+# Generated model files
+*.pt
+*.ts
+model_trt_*.ts
+model_scripted.pt
+stereo_cnn_new.ts
+disparity_*.jpg
+model_comparison.png
+difference_map.png
+difference_histogram.png
+*.npy
+
+# Keep original checkpoint
+!stereo_cnn_stereo_cnn_sa_baseline.checkpoint
+
+# Python build artifacts
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# CUDA build artifacts
+*.o
+*.obj
+*.cubin
+*.fatbin
+*.ptx
+*.i
+*.ii
+*.gpu
+*.ptx
+*.cubin
+*.fatbin
+*.module_*
+
+# Editor and environment files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Log files and temporary files
+*.log
+*.tmp
+tmp/
+temp/
+.ipynb_checkpoints/
+*.pyc

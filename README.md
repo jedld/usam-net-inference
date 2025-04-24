@@ -15,6 +15,7 @@ If you wish to train models it is best to look at the above repository instead.
 - Real-time depth map generation
 - Web-based interface using Gradio
 - Support for both CPU and GPU inference
+- CUDA C++ implementation for accelerated inference
 
 ## Requirements
 
@@ -24,6 +25,7 @@ If you wish to train models it is best to look at the above repository instead.
 - Gradio
 - Segment Anything Model (SAM)
 - Other dependencies listed in `requirements.txt`
+- CUDA-enabled GPU (optional, for CUDA implementation)
 
 ## Installation
 
@@ -33,6 +35,17 @@ If you wish to train models it is best to look at the above repository instead.
 pip install -r requirements.txt
 ```
 
+3. For CUDA acceleration, build the CUDA extension:
+```bash
+# First create a TorchScript model
+python save_scripted_model.py --output model_scripted.pt
+
+# Then build and install the CUDA extension
+python setup.py install
+```
+
+See [README_CUDA.md](README_CUDA.md) for more details on the CUDA implementation.
+
 ## Project Structure
 
 - `model.py`: Contains the main SAStereoCNN2 model architecture with self-attention mechanisms
@@ -41,8 +54,15 @@ pip install -r requirements.txt
 - `stereo_vision.ipynb`: Jupyter notebook for experimentation and visualization
 - `templates/`: Directory containing web interface templates
 - `sample/`: Sample stereo image pairs for testing
+- `stereo_cnn_cuda.cpp/h`: CUDA C++ implementation of the model
+- `cuda_kernels.cu`: CUDA kernel implementations for model operations
+- `stereo_cnn_cuda_wrapper.py`: Python wrapper for the CUDA implementation
+- `setup.py`: Build script for the CUDA extension
+- `save_scripted_model.py`: Script to create a TorchScript model
 
 ## Usage
+
+### Web Interface
 
 1. Start the web interface:
 ```bash
@@ -52,6 +72,21 @@ python gradio_app.py
 2. Open your web browser and navigate to the provided local URL
 3. Upload a pair of stereo images (left and right views)
 4. The system will generate a depth map visualization
+
+### Command Line
+
+Use the provided command-line interface:
+
+```bash
+# Using PyTorch implementation
+python stereo_cli.py baseline <left-image> <right-image> --output disparity.png
+
+# Using CUDA implementation (faster)
+python stereo_cli.py cuda <left-image> <right-image> --output disparity.png --benchmark
+
+# Using TensorRT implementation
+python stereo_cli.py stereoRT <left-image> <right-image> --output disparity.png --benchmark
+```
 
 ## Model Architecture
 
@@ -78,22 +113,22 @@ that it is of the following structure:
 
 ```
 ── data
-│   ├── calib
-│   ├── test
-│   │   ├── depth_maps
-│   │   ├── disparity_maps
-│   │   ├── left_images
-│   │   ├── left_masks
-│   │   ├── right_images
-│   │   └── right_masks
-│   └── train
-│       ├── depth_maps
-│       ├── disparity_maps
-│       ├── left_images
-│       ├── left_masks
-│       ├── left_sky_masks
-│       ├── right_images
-│       └── right_masks
+│   ├── calib
+│   ├── test
+│   │   ├── depth_maps
+│   │   ├── disparity_maps
+│   │   ├── left_images
+│   │   ├── left_masks
+│   │   ├── right_images
+│   │   └── right_masks
+│   └── train
+│       ├── depth_maps
+│       ├── disparity_maps
+│       ├── left_images
+│       ├── left_masks
+│       ├── left_sky_masks
+│       ├── right_images
+│       └── right_masks
 ```
 
 ## License
