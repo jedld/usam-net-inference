@@ -11,8 +11,7 @@ import os
 import time
 import psutil
 import gc
-from model_trt import StereoRT
-import torch_tensorrt
+from model_trt_2 import StereoRT
 
 def get_memory_usage():
     """Get current memory usage of the process in MB"""
@@ -44,7 +43,7 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
         
         model.eval()
     elif model_type == 'stereoRT':
-        model = StereoRT('model_trt_32.ts')
+        model = StereoRT('stereo_model_fused_torch_cleaned.engine')
 
     model_load_time = time.time() - model_load_start
     model_memory = get_memory_usage() - initial_memory
@@ -73,7 +72,11 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
     # Post-processing time
     postprocess_start = time.time()
     # Convert disparity to numpy and normalize for visualization
-    disparity_np = disparity.squeeze().cpu().numpy()
+    if model_type == 'baseline': 
+        disparity_np = disparity.squeeze().cpu().numpy()
+    elif model_type == 'stereoRT':
+        disparity_np = disparity.squeeze()
+    
     if disparity_np.max() > disparity_np.min():
         disparity_np = (disparity_np - disparity_np.min()) / (disparity_np.max() - disparity_np.min())
     
@@ -81,7 +84,7 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
     plt.figure(figsize=(10, 5))
     plt.imshow(disparity_np, cmap='magma')
     plt.axis('off')
-    #plt.savefig(output_path, bbox_inches='tight', pad_inches=0)
+    plt.savefig(output_path, bbox_inches='tight', pad_inches=0)
     plt.close()
     postprocess_time = time.time() - postprocess_start
     

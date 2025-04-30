@@ -1,0 +1,58 @@
+TRT-100100-EntropyCalibration2
+input_0: 3cb5f0e6
+%input.5 : Tensor = aten::_convolution(%x.2, %self.down1.0.weight.1, %self.down1.0.bias.1, %8, %7, %7, %11, %6, %16, %11, %11, %12, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/modules/conv.py:454:0_output: 3ca034fd
+%249 : Tensor = aten::leaky_relu(%input.5, %13) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:1677:0_output: 3c78bb7a
+%input.7 : Tensor = aten::batch_norm(%249, %self.down1.2.running_var.1, %self.down1.2.running_mean.1, %self.down1.2.running_mean.1, %self.down1.2.running_var.1, %11, %15, %14, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:2512:0_output: 3c78bb28
+%input.9 : Tensor = aten::_convolution(%input.7, %self.down2.0.weight.1, %self.down2.0.bias.1, %8, %7, %7, %11, %6, %16, %11, %11, %12, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/modules/conv.py:454:0_output: 3c127744
+%252 : Tensor = aten::leaky_relu(%input.9, %13) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:1677:0_output: 3bbdce38
+%input.11 : Tensor = aten::batch_norm(%252, %self.down2.2.running_var.1, %self.down2.2.running_mean.1, %self.down2.2.running_mean.1, %self.down2.2.running_var.1, %11, %15, %14, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:2512:0_output: 3bbdcdfb
+%input.13 : Tensor = aten::_convolution(%input.11, %self.down3.0.weight.1, %self.down3.0.bias.1, %8, %7, %7, %11, %6, %16, %11, %11, %12, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/modules/conv.py:454:0_output: 3b863f01
+%255 : Tensor = aten::leaky_relu(%input.13, %13) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:1677:0_output: 3ad25cb9
+%input.15 : Tensor = aten::batch_norm(%255, %self.down3.2.running_var.1, %self.down3.2.running_mean.1, %self.down3.2.running_mean.1, %self.down3.2.running_var.1, %11, %15, %14, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:2512:0_output: 3ad25c74
+%input.25 : Tensor = aten::_convolution(%input.15, %self.down4.0.weight.1, %self.down4.0.bias.1, %8, %7, %7, %11, %6, %16, %11, %11, %12, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/modules/conv.py:454:0_output: 3b174b2d
+%258 : Tensor = aten::leaky_relu(%input.25, %13) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:1677:0_output: 3a77e890
+%input.17 : Tensor = aten::batch_norm(%258, %self.down4.2.running_var.1, %self.down4.2.running_mean.1, %self.down4.2.running_mean.1, %self.down4.2.running_var.1, %11, %15, %14, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:2512:0_output: 3a77e83e
+%input.19 : Tensor = aten::_convolution(%input.17, %self.down5.0.weight.1, %self.down5.0.bias.1, %8, %7, %7, %11, %6, %16, %11, %11, %12, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/modules/conv.py:454:0_output: 3a7acf99
+%261 : Tensor = aten::leaky_relu(%input.19, %13) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:1677:0_output: 39b00f55
+%x.1 : Tensor = aten::batch_norm(%261, %self.down5.2.running_var.1, %self.down5.2.running_mean.1, %self.down5.2.running_mean.1, %self.down5.2.running_var.1, %11, %15, %14, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:2512:0_output: 39b00f1b
+%269 : Tensor = aten::_convolution(%x.1, %self.self_attention.query_conv.weight.1, %self.self_attention.query_conv.bias.1, %7, %6, %7, %11, %6, %16, %11, %11, %12, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/modules/conv.py:454:0_output: 39f7f4f0
+%313 : Tensor = aten::reshape(%269, %272)_output: 39f7f4f0
+%query.1 : Tensor = aten::permute(%313, %2) # /raid/students/joshua_c/dev/usam-net-inference/model.py:23:0_output: 39f7f4f0
+%275 : Tensor = aten::_convolution(%x.1, %self.self_attention.key_conv.weight.1, %self.self_attention.key_conv.bias.1, %7, %6, %7, %11, %6, %16, %11, %11, %12, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/modules/conv.py:454:0_output: 39fe08c7
+%314 : Tensor = aten::reshape(%275, %272)_output: 39fe08c7
+%277 : Tensor = aten::_convolution(%x.1, %self.self_attention.value_conv.weight.1, %self.self_attention.value_conv.bias.1, %7, %6, %7, %11, %6, %16, %11, %11, %12, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/modules/conv.py:454:0_output: 3a054a59
+%315 : Tensor = aten::reshape(%277, %272)_output: 3a054a59
+%input.21 : Tensor = aten::bmm(%query.1, %314) # /raid/students/joshua_c/dev/usam-net-inference/model.py:27:0_output: 388bbb99
+280: 38353be8
+%281 : Tensor = aten::permute(%280, %2) # /raid/students/joshua_c/dev/usam-net-inference/model.py:28:0_output: 38353be8
+%out.1 : Tensor = aten::bmm(%315, %281) # /raid/students/joshua_c/dev/usam-net-inference/model.py:28:0_output: 39c8c30b
+%316 : Tensor = aten::reshape(%out.1, %283)_output: 39c8c30b
+%285 : Tensor = aten::add(%316, %x.1, %16) # /raid/students/joshua_c/dev/usam-net-inference/model.py:31:0_output_1: 3a6425b4
+%input.23 : Tensor = aten::_convolution(%285, %self.up1.0.weight.1, %self.up1.0.bias.1, %8, %7, %7, %12, %6, %16, %11, %11, %12, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/modules/conv.py:948:0_output: 39f8a145
+%287 : Tensor = aten::leaky_relu(%input.23, %13) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:1677:0_output: 397ab581
+%288 : Tensor = aten::batch_norm(%287, %self.down4.2.running_var.1, %self.down4.2.running_mean.1, %self.down4.2.running_mean.1, %self.down4.2.running_var.1, %11, %15, %14, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:2512:0_output: 397ab52e
+%input.3 : Tensor = aten::add(%288, %input.17, %16) # /raid/students/joshua_c/dev/usam-net-inference/model.py:121:0_output_2: 3a822abb
+%input0.4 : Tensor = aten::_convolution(%input.3, %self.up2.0.weight.1, %self.up2.0.bias.1, %8, %7, %7, %12, %6, %16, %11, %11, %12, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/modules/conv.py:948:0_output: 3a574731
+%291 : Tensor = aten::leaky_relu(%input0.4, %13) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:1677:0_output: 39a11e3c
+%292 : Tensor = aten::batch_norm(%291, %self.down3.2.running_var.1, %self.down3.2.running_mean.1, %self.down3.2.running_mean.1, %self.down3.2.running_var.1, %11, %15, %14, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:2512:0_output: 39a11e07
+%input0.2 : Tensor = aten::add(%292, %input.15, %16) # /raid/students/joshua_c/dev/usam-net-inference/model.py:122:0_output_3: 3b555f49
+%input0.6 : Tensor = aten::_convolution(%input0.2, %self.up3.0.weight.1, %self.up3.0.bias.1, %8, %7, %7, %12, %6, %16, %11, %11, %12, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/modules/conv.py:948:0_output: 3b05c66d
+%295 : Tensor = aten::leaky_relu(%input0.6, %13) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:1677:0_output: 3a08f2c4
+%296 : Tensor = aten::batch_norm(%295, %self.down2.2.running_var.1, %self.down2.2.running_mean.1, %self.down2.2.running_mean.1, %self.down2.2.running_var.1, %11, %15, %14, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:2512:0_output: 3a08f296
+%input1.1 : Tensor = aten::add(%296, %input.11, %16) # /raid/students/joshua_c/dev/usam-net-inference/model.py:123:0_output_4: 3becd06d
+%input0.8 : Tensor = aten::_convolution(%input1.1, %self.up4.0.weight.1, %self.up4.0.bias.1, %8, %7, %7, %12, %6, %16, %11, %11, %12, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/modules/conv.py:948:0_output: 3b5f2b1b
+%299 : Tensor = aten::leaky_relu(%input0.8, %13) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:1677:0_output: 3aa8ff3d
+%300 : Tensor = aten::batch_norm(%299, %self.down1.2.running_var.1, %self.down1.2.running_mean.1, %self.down1.2.running_mean.1, %self.down1.2.running_var.1, %11, %15, %14, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:2512:0_output: 3aa8ff06
+%input2.1 : Tensor = aten::add(%300, %input.7, %16) # /raid/students/joshua_c/dev/usam-net-inference/model.py:124:0_output_5: 3c8708dd
+%input0.1 : Tensor = aten::_convolution(%input2.1, %self.up5.0.weight.1, %self.up5.0.bias.1, %8, %7, %7, %12, %6, %16, %11, %11, %12, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/modules/conv.py:948:0_output: 3c11fec5
+%303 : Tensor = aten::leaky_relu(%input0.1, %13) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:1677:0_output: 3bbbad3c
+%input.27 : Tensor = aten::batch_norm(%303, %self.up5.2.running_var.1, %self.up5.2.running_mean.1, %self.up5.2.running_mean.1, %self.up5.2.running_var.1, %11, %15, %14, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:2512:0_output: 3bbbacff
+%input.2 : Tensor = aten::_convolution(%input.27, %self.conv.0.weight.1, %self.conv.0.bias.1, %7, %7, %7, %11, %6, %16, %11, %11, %12, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/modules/conv.py:454:0_output: 3b6d5c07
+%306 : Tensor = aten::leaky_relu(%input.2, %13) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:1677:0_output: 3a992396
+%input.4 : Tensor = aten::_convolution(%306, %self.conv.2.weight.1, %self.conv.2.bias.1, %7, %7, %7, %11, %6, %16, %11, %11, %12, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/modules/conv.py:454:0_output: 3b07bd4c
+%308 : Tensor = aten::leaky_relu(%input.4, %13) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/functional.py:1677:0_output: 3a4c92d2
+%input.1 : Tensor = aten::_convolution(%308, %self.conv.4.weight.1, %self.conv.4.bias.1, %7, %6, %7, %11, %6, %16, %11, %11, %12, %12) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/modules/conv.py:454:0_output: 3ac59a1e
+%310 : Tensor = aten::sigmoid(%input.1) # /raid/students/joshua_c/dev/usam-net-inference/.venv/lib/python3.8/site-packages/torch/nn/modules/activation.py:301:0_output: 3b8b60f0
+%125 : Tensor = aten::mul(%310, %17) # /raid/students/joshua_c/dev/usam-net-inference/model.py:126:0 [Cast ITensor 0xb4173920 from Int32 to Float32]_output: 4000890a
+(Unnamed Layer* 55) [Shuffle]_output: 4000890a
+output_0: 3f8ad58f
