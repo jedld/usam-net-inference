@@ -1,0 +1,10 @@
+LICENSE
+README.md
+cuda_kernels.cu
+setup.py
+stereo_cnn_cuda.cpp
+stereo_cnn_cuda.egg-info/PKG-INFO
+stereo_cnn_cuda.egg-info/SOURCES.txt
+stereo_cnn_cuda.egg-info/dependency_links.txt
+stereo_cnn_cuda.egg-info/requires.txt
+stereo_cnn_cuda.egg-info/top_level.txt
