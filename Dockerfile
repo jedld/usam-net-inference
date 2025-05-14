@@ -1,11 +1,36 @@
 FROM dustynv/l4t-pytorch:r36.4.0
 
-RUN pip install --upgrade pip
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY . /app
-
+# Set working directory
 WORKDIR /app
 
-RUN pip install -r requirements-jetson.txt
+# Copy requirements first to leverage Docker cache
+COPY requirements.txt .
 
-CMD ["python3", "stereo_cli.py",  "sample/left_images/2018-07-11-14-48-52_2018-07-11-14-50-22-775.jpg", "sample/right_images/2018-07-11-14-48-52_2018-07-11-14-50-22-775.jpg", "--output", "output.png", "--benchmark"]
+# Install Python dependencies
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+# Copy application files
+COPY stereo_webapp.py .
+COPY model.py .
+COPY model_trt.py .
+COPY stereo_cnn_stereo_cnn_sa_baseline.checkpoint .
+COPY model_trt_32.ts .
+COPY templates/ templates/
+
+# Create a non-root user
+RUN useradd -m -s /bin/bash appuser
+RUN chown -R appuser:appuser /app
+USER appuser
+
+# Expose the port the app runs on
+EXPOSE 5000
+
+# Command to run the application
+CMD ["python3", "stereo_webapp.py", "stereoRT", "--host", "0.0.0.0", "--port", "5000"]
