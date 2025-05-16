@@ -10,6 +10,7 @@ This is a CUDA C++ implementation of the SAStereoCNN2 model for faster stereo di
 - OpenCV
 - Matplotlib
 - Python 3.6 or later
+- NVIDIA Nsight Systems (for profiling)
 
 ## Installation
 
@@ -33,7 +34,7 @@ This is a CUDA C++ implementation of the SAStereoCNN2 model for faster stereo di
 
 4. Test the installation:
    ```
-   python stereo_cli.py cuda <left-image> <right-image> --output disparity.png --benchmark
+   python stereo_cli.py cuda sample/left_images/2018-07-11-14-48-52_2018-07-11-14-50-22-775.jpgsample/right_images/2018-07-11-14-48-52_2018-07-11-14-50-22-775.jpg --output disparity.png --benchmark
    ```
 
 ### Option 2: Using Docker
@@ -47,6 +48,86 @@ This is a CUDA C++ implementation of the SAStereoCNN2 model for faster stereo di
    ```
    docker run --gpus all -v $(pwd):/data stereo-cnn-cuda cuda /data/<left-image> /data/<right-image> --output /data/disparity.png --benchmark
    ```
+
+## Profiling with NVIDIA Nsight Systems
+
+To profile the CUDA kernels and analyze performance:
+
+1. Install NVIDIA Nsight Systems:
+   ```bash
+   # For Ubuntu/Debian
+   sudo apt-get install nsight-systems
+   
+   # For other distributions, download from NVIDIA website
+   # https://developer.nvidia.com/nsight-systems
+   ```
+
+2. Profile the CUDA implementation:
+   ```bash
+   # Basic profiling
+   nsys profile python stereo_cli.py cuda <left-image> <right-image> --output disparity.png --benchmark
+   
+   # Detailed profiling with CUDA API tracing
+   nsys profile --trace=cuda,nvtx,osrt,cudnn python stereo_cli.py cuda <left-image> <right-image> --output disparity.png --benchmark
+   
+   # Profile with specific duration (e.g., 5 seconds)
+   nsys profile --duration 5 python stereo_cli.py cuda <left-image> <right-image> --output disparity.png --benchmark
+   ```
+
+3. Profile specific CUDA kernels:
+   ```bash
+   # Profile with kernel-level details
+   nsys profile --stats=true --force-overwrite true --trace=cuda,nvtx,osrt,cudnn --cuda-memory-usage=true python stereo_cli.py cuda <left-image> <right-image> --output disparity.png --benchmark
+   ```
+
+4. View the profiling results:
+   ```bash
+   # Open the generated .nsys-rep file with Nsight Systems GUI
+   nsys-ui report1.nsys-rep
+   ```
+
+5. Analyze specific metrics:
+   ```bash
+   # Export profiling data to CSV
+   nsys export --type csv report1.nsys-rep
+   
+   # Generate a summary report
+   nsys stats report1.nsys-rep
+   ```
+
+### Profiling Tips
+
+1. Use NVTX markers in your code to identify specific operations:
+   ```python
+   import torch.cuda.nvtx as nvtx
+   
+   # Mark the start of an operation
+   nvtx.range_push("operation_name")
+   
+   # Your CUDA operation here
+   
+   # Mark the end of the operation
+   nvtx.range_pop()
+   ```
+
+2. Focus on specific kernels:
+   ```bash
+   # Profile only specific CUDA kernels
+   nsys profile --trace=cuda,nvtx --cuda-memory-usage=true --cuda-kernel-filter="conv2d_forward_cuda" python stereo_cli.py cuda <left-image> <right-image>
+   ```
+
+3. Memory analysis:
+   ```bash
+   # Profile memory operations
+   nsys profile --trace=cuda,nvtx --cuda-memory-usage=true --stats=true python stereo_cli.py cuda <left-image> <right-image>
+   ```
+
+The profiling results will help identify:
+- Kernel execution times
+- Memory transfer overhead
+- CUDA API call latencies
+- Resource utilization
+- Potential bottlenecks
 
 ## TorchScript Model Conversion
 

@@ -1,14 +1,25 @@
 FROM dustynv/l4t-pytorch:r36.4.0
 
 RUN pip install --upgrade pip
-WORKDIR /app
-COPY requirements-jetson.txt /app/requirements-jetson.txt
-RUN pip install -r requirements-jetson.txt
+
+# Install Nsight Systems
+RUN apt-get update && \
+    apt-get install -y nsight-systems && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY . /app
+
+WORKDIR /app
+
+RUN pip install -r requirements-jetson.txt
 
 RUN python3 save_scripted_model.py --output model_scripted.pt
 
 RUN python3 setup.py install
 
-CMD ["python3", "stereo_cli.py", "cuda",  "sample/left_images/2018-07-11-14-48-52_2018-07-11-14-50-22-775.jpg", "sample/right_images/2018-07-11-14-48-52_2018-07-11-14-50-22-775.jpg", "--output", "output.png", "--benchmark"]
+# Create directory for profiling results
+RUN mkdir -p /app/profiling_results
+
+# Default command with profiling
+CMD ["bash", "-c", "nsys profile --trace=cuda,nvtx,osrt,cudnn --cuda-memory-usage=true --stats=true --force-overwrite true -o /app/profiling_results/stereo_cnn_profile python3 stereo_cli.py cuda sample/left_images/2018-07-11-14-48-52_2018-07-11-14-50-22-775.jpg sample/right_images/2018-07-11-14-48-52_2018-07-11-14-50-22-775.jpg --output output.png --benchmark"]
