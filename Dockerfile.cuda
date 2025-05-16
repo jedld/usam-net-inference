@@ -1,37 +1,15 @@
-FROM nvidia/cuda:11.6.2-cudnn8-devel-ubuntu20.04
+FROM dustynv/l4t-pytorch:r36.4.0
 
-# Set environment variables
-ENV DEBIAN_FRONTEND=noninteractive
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
+RUN pip install --upgrade pip
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    cmake \
-    git \
-    python3-dev \
-    python3-pip \
-    python3-setuptools \
-    python3-wheel \
-    libopencv-dev \
-    python3-opencv \
-    && rm -rf /var/lib/apt/lists/*
+COPY . /app
 
-# Create a working directory
 WORKDIR /app
 
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt
-RUN pip3 install torch==1.12.1+cu116 torchvision==0.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
+RUN pip install -r requirements-jetson.txt
 
-# Copy source code
-COPY . .
+RUN python3 save_scripted_model.py --output model_scripted.pt
 
-# Build the CUDA extension
 RUN python3 setup.py install
 
-# Set the default command
-ENTRYPOINT ["python3", "stereo_cli.py"]
-CMD ["cuda", "--help"] 
+CMD ["python3", "stereo_cli.py", "cuda",  "sample/left_images/2018-07-11-14-48-52_2018-07-11-14-50-22-775.jpg", "sample/right_images/2018-07-11-14-48-52_2018-07-11-14-50-22-775.jpg", "--output", "output.png", "--benchmark"]
