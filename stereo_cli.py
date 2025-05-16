@@ -27,9 +27,13 @@ def get_memory_usage():
     process = psutil.Process(os.getpid())
     return process.memory_info().rss / 1024 / 1024
 
-def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='output.png', benchmark=False, model_path=None, force_checkpoint=False):
+def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='output.png', benchmark=False, model_path=None, force_checkpoint=False, force_cpu=False):
     # Initialize model
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if force_cpu:
+        device = torch.device('cpu')
+        print("Forcing CPU usage as requested")
+    else:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
     
     # Memory usage before model loading
@@ -45,18 +49,22 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
         checkpoint_path = 'stereo_cnn_stereo_cnn_sa_baseline.checkpoint'
         if os.path.exists(checkpoint_path):
             print("Loading model checkpoint...")
-            checkpoint = torch.load(checkpoint_path)
+            checkpoint = torch.load(checkpoint_path, map_location=device)
             model.load_state_dict(checkpoint)
         else:
             raise FileNotFoundError(f"Checkpoint file not found at {checkpoint_path}")
         
         model.eval()
     elif model_type == 'stereoRT':
+        if force_cpu:
+            raise ValueError("TensorRT models cannot run on CPU. Please use 'baseline' model type for CPU inference.")
         # Use specified model path or default
         trt_model_path = model_path if model_path else 'model_trt_32.ts'
         print(f"Loading TensorRT model from: {trt_model_path}")
         model = StereoRT(trt_model_path)
     elif model_type == 'cuda' and CUDA_EXTENSION_AVAILABLE:
+        if force_cpu:
+            raise ValueError("CUDA models cannot run on CPU. Please use 'baseline' model type for CPU inference.")
         checkpoint_path = 'stereo_cnn_stereo_cnn_sa_baseline.checkpoint'
         if not os.path.exists(checkpoint_path):
             raise FileNotFoundError(f"Checkpoint file not found at {checkpoint_path}")
@@ -160,11 +168,12 @@ def main():
     parser.add_argument('--benchmark', '-b', action='store_true', help='Show benchmarking information')
     parser.add_argument('--model-path', type=str, help='Custom path to the TensorRT model file (for stereoRT)')
     parser.add_argument('--force-checkpoint', action='store_true', help='Force CUDA model to use checkpoint file directly')
+    parser.add_argument('--force-cpu', action='store_true', help='Force CPU usage (only works with baseline model)')
     
     args = parser.parse_args()
     
     try:
-        process_stereo_pair(args.model_type, args.left_img, args.right_img, args.output, args.benchmark, args.model_path, args.force_checkpoint)
+        process_stereo_pair(args.model_type, args.left_img, args.right_img, args.output, args.benchmark, args.model_path, args.force_checkpoint, args.force_cpu)
     except Exception as e:
         print(f"Error: {str(e)}")
         return 1
