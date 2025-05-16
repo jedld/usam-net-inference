@@ -21,8 +21,12 @@ def main():
     checkpoint = torch.load(checkpoint_path, map_location=device)
     model.load_state_dict(checkpoint)
     
-    # Move model to device and set to eval mode
+    # Move model and all its submodules to device
     model = model.to(device)
+    for module in model.modules():
+        module.to(device)
+    
+    # Set to eval mode
     model.eval()
     
     # Create a dummy input for tracing
