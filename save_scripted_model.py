@@ -8,8 +8,9 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
     
-    # Load the model
+    # Load the model and move to device first
     model = SAStereoCNN2(device)
+    model = model.to(device)
     
     # Load the checkpoint
     checkpoint_path = 'stereo_cnn_stereo_cnn_sa_baseline.checkpoint'
@@ -21,11 +22,6 @@ def main():
     checkpoint = torch.load(checkpoint_path, map_location=device)
     model.load_state_dict(checkpoint)
     
-    # Move model and all its submodules to device
-    model = model.to(device)
-    for module in model.modules():
-        module.to(device)
-    
     # Set to eval mode
     model.eval()
     
@@ -36,14 +32,27 @@ def main():
     dummy_input = torch.cat((dummy_left, dummy_right), dim=1)
     
     # Script the model
-    print("Tracing the model...")
+    print("Scripting the model...")
     with torch.no_grad():
-        scripted_model = torch.jit.trace(model, dummy_input)
+        try:
+            # First try scripting
+            scripted_model = torch.jit.script(model)
+        except Exception as e:
+            print(f"Scripting failed, falling back to tracing: {e}")
+            # If scripting fails, fall back to tracing
+            scripted_model = torch.jit.trace(model, dummy_input)
     
     # Save the scripted model
     output_path = 'model_scripted.pt'
     print(f"Saving scripted model to {output_path}")
     scripted_model.save(output_path)
+    
+    # Verify the saved model
+    print("Verifying saved model...")
+    loaded_model = torch.jit.load(output_path, map_location=device)
+    with torch.no_grad():
+        test_output = loaded_model(dummy_input)
+    print("Model verification successful!")
     
     print("Done!")
     return 0
