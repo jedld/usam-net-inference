@@ -10,7 +10,6 @@ def main():
     
     # Load the model
     model = SAStereoCNN2(device)
-    model.to(device)
     
     # Load the checkpoint
     checkpoint_path = 'stereo_cnn_stereo_cnn_sa_baseline.checkpoint'
@@ -21,6 +20,9 @@ def main():
     print(f"Loading checkpoint from {checkpoint_path}")
     checkpoint = torch.load(checkpoint_path, map_location=device)
     model.load_state_dict(checkpoint)
+    
+    # Move model to device and set to eval mode
+    model = model.to(device)
     model.eval()
     
     # Create a dummy input for tracing
