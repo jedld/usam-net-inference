@@ -2,13 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-import torch
-import torch.nn as nn
 from torchvision.models import resnet18
 # from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 from transforms import transform_disparity_fn, transform_fn, transform_seg_fn, test_transform_fn, test_transform_seg_fn
 import cv2
-import torch.nn as nn
 
 # Try to import TensorRT, but make it optional
 try:
@@ -24,7 +21,7 @@ class SelfAttention(nn.Module):
         self.query_conv = nn.Conv2d(in_channels, in_channels // 8, 1)
         self.key_conv = nn.Conv2d(in_channels, in_channels // 8, 1)
         self.value_conv = nn.Conv2d(in_channels, in_channels, 1)
-        self.softmax = nn.Softmax(dim=-1)  # Softmax over the last dimension to create attention maps
+        self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x):
         batch_size, channels, height, width = x.size()
@@ -36,7 +33,7 @@ class SelfAttention(nn.Module):
         out = torch.bmm(value, attention.permute(0, 2, 1))
         out = out.view(batch_size, channels, height, width)
 
-        return out + x  # Skip connection
+        return out + x
 
     def flops(self, x):
         batch_size, channels, height, width = x.size()
@@ -54,6 +51,9 @@ class SelfAttention(nn.Module):
 class SAStereoCNN2(nn.Module):
     def __init__(self, device, load_sam=False):
         super(SAStereoCNN2, self).__init__()
+        self.device = device
+        
+        # Initialize all layers
         self.down1 = nn.Sequential(
             nn.Conv2d(6, 64, kernel_size=3, stride=2, padding=1),
             nn.LeakyReLU(),
@@ -65,61 +65,57 @@ class SAStereoCNN2(nn.Module):
         self.down3 = nn.Sequential(
             nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
             nn.LeakyReLU(),
-            nn.BatchNorm2d(256)
-        )
+            nn.BatchNorm2d(256))
         self.down4 = nn.Sequential(
             nn.Conv2d(256, 512, kernel_size=3, stride=2, padding=1),
             nn.LeakyReLU(),
-            nn.BatchNorm2d(512)
-        )
+            nn.BatchNorm2d(512))
         self.down5 = nn.Sequential(
             nn.Conv2d(512, 1024, kernel_size=3, stride=2, padding=1),
             nn.LeakyReLU(),
-            nn.BatchNorm2d(1024)
-        )
+            nn.BatchNorm2d(1024))
 
         self.self_attention = SelfAttention(1024)
 
         self.up1 = nn.Sequential(
             nn.ConvTranspose2d(1024, 512, kernel_size=3, stride=2, padding=1),
             nn.LeakyReLU(),
-            nn.BatchNorm2d(512)
-        )
+            nn.BatchNorm2d(512))
         self.up2 = nn.Sequential(
             nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(),
-            nn.BatchNorm2d(256)
-        )
+            nn.BatchNorm2d(256))
         self.up3 = nn.Sequential(
             nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(),
-            nn.BatchNorm2d(128)
-        )
+            nn.BatchNorm2d(128))
         self.up4 = nn.Sequential(
             nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(),
-            nn.BatchNorm2d(64)
-        )
+            nn.BatchNorm2d(64))
         self.up5 = nn.Sequential(
             nn.ConvTranspose2d(64, 32, kernel_size=(4, 3), stride=2, padding=1),
             nn.LeakyReLU(),
-            nn.BatchNorm2d(32)
-        )
+            nn.BatchNorm2d(32))
         self.conv = nn.Sequential(
             nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1),
             nn.LeakyReLU(),
             nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
             nn.LeakyReLU(),
             nn.Conv2d(64, 1, kernel_size=1, stride=1, padding=0),
-            nn.Sigmoid()
-        )
-        self.device = device
+            nn.Sigmoid())
+        
+        # Move all parameters to device immediately
+        self.to(device)
+        
         if load_sam:
             sam = sam_model_registry["vit_b"](checkpoint="tmp/sam_vit_b_01ec64.pth")
             sam.to(device)
             self.mask_generator = SamAutomaticMaskGenerator(sam)
 
-    def forward(self, x):
+    @torch.jit.script_method
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = x.to(self.device)
         down1 = self.down1(x)
         down2 = self.down2(down1)
         down3 = self.down3(down2)

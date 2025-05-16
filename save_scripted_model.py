@@ -8,9 +8,8 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
     
-    # Load the model and move to device first
+    # Load the model (it will automatically move to device)
     model = SAStereoCNN2(device)
-    model = model.to(device)
     
     # Load the checkpoint
     checkpoint_path = 'stereo_cnn_stereo_cnn_sa_baseline.checkpoint'
