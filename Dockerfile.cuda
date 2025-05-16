@@ -1,12 +1,11 @@
 FROM dustynv/l4t-pytorch:r36.4.0
 
 RUN pip install --upgrade pip
+WORKDIR /app
+COPY requirements-jetson.txt /app/requirements-jetson.txt
+RUN pip install -r requirements-jetson.txt
 
 COPY . /app
-
-WORKDIR /app
-
-RUN pip install -r requirements-jetson.txt
 
 RUN python3 save_scripted_model.py --output model_scripted.pt
 
