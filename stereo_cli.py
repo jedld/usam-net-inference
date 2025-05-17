@@ -14,6 +14,52 @@ import gc
 from model_trt import StereoRT
 import torch_tensorrt
 
+def print_cuda_device_properties():
+    """Print detailed information about CUDA devices if available"""
+    if not torch.cuda.is_available():
+        print("CUDA is not available on this system")
+        return
+
+    print("\nCUDA Device Properties:")
+    print("-" * 50)
+    
+    # Get number of CUDA devices
+    device_count = torch.cuda.device_count()
+    print(f"Number of CUDA devices: {device_count}")
+    
+    for i in range(device_count):
+        print(f"\nDevice {i}: {torch.cuda.get_device_name(i)}")
+        
+        # Get device properties
+        props = torch.cuda.get_device_properties(i)
+        
+        # Basic properties
+        print(f"  Compute Capability: {props.major}.{props.minor}")
+        print(f"  Total Memory: {props.total_memory / 1024**3:.2f} GB")
+        print(f"  Multi-Processor Count: {props.multi_processor_count}")
+        
+        # Thread and block properties
+        print(f"  Max Threads per Block: {props.max_threads_per_block}")
+        print(f"  Max Threads per Multi-Processor: {props.max_threads_per_multi_processor}")
+        print(f"  Max Block Dimensions: {props.max_block_dim_x} x {props.max_block_dim_y} x {props.max_block_dim_z}")
+        print(f"  Max Grid Dimensions: {props.max_grid_dim_x} x {props.max_grid_dim_y} x {props.max_grid_dim_z}")
+        
+        # Memory properties
+        print(f"  Shared Memory per Block: {props.max_shared_memory_per_block / 1024:.2f} KB")
+        print(f"  Shared Memory per Multi-Processor: {props.max_shared_memory_per_multi_processor / 1024:.2f} KB")
+        print(f"  L2 Cache Size: {props.l2_cache_size / 1024:.2f} KB")
+        
+        # Clock properties
+        print(f"  Clock Rate: {props.clock_rate / 1000:.2f} GHz")
+        
+        # Memory bandwidth (theoretical)
+        memory_clock = props.memory_clock_rate / 1000  # GHz
+        memory_bus_width = props.memory_bus_width  # bits
+        memory_bandwidth = (memory_clock * memory_bus_width * 2) / 8  # GB/s (DDR)
+        print(f"  Memory Bandwidth: {memory_bandwidth:.2f} GB/s")
+    
+    print("-" * 50 + "\n")
+
 # Add CUDA implementation import
 try:
     from stereo_cnn_cuda_wrapper import StereoCNNCuda
@@ -21,6 +67,9 @@ try:
 except ImportError:
     CUDA_EXTENSION_AVAILABLE = False
     print("CUDA extension not available. Run 'python setup.py install' to build it.")
+
+# Print CUDA device properties at startup
+print_cuda_device_properties()
 
 def get_memory_usage():
     """Get current memory usage of the process in MB"""
