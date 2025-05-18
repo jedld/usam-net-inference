@@ -11,6 +11,7 @@ import os
 import time
 import psutil
 import gc
+from statistics import mean, stdev
 try:
     from model_trt import StereoRT
     import torch_tensorrt
@@ -65,6 +66,93 @@ def get_memory_usage():
     """Get current memory usage of the process in MB"""
     process = psutil.Process(os.getpid())
     return process.memory_info().rss / 1024 / 1024
+
+def run_benchmark(model_type, left_img_path, right_img_path, num_runs=5):
+    """Run multiple benchmarks and return statistics"""
+    timings = {
+        'model_load': [],
+        'preprocess': [],
+        'inference': [],
+        'postprocess': [],
+        'total': [],
+        'model_memory': [],
+        'peak_memory': []
+    }
+    
+    # First run to load model and warm up
+    print("Warming up...")
+    process_stereo_pair(model_type, left_img_path, right_img_path, 'warmup.png', benchmark=False)
+    
+    print(f"\nRunning {num_runs} benchmark iterations...")
+    for i in range(num_runs):
+        print(f"\nIteration {i+1}/{num_runs}")
+        try:
+            # Clear CUDA cache if available
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            
+            # Run benchmark
+            start_time = time.time()
+            process_stereo_pair(model_type, left_img_path, right_img_path, f'output_{i}.png', benchmark=True)
+            total_time = time.time() - start_time
+            
+            # Parse benchmark output
+            with open('benchmark_output.txt', 'r') as f:
+                lines = f.readlines()
+                for line in lines:
+                    if 'Model Loading Time:' in line:
+                        timings['model_load'].append(float(line.split(':')[1].strip().split()[0]))
+                    elif 'Preprocessing Time:' in line:
+                        timings['preprocess'].append(float(line.split(':')[1].strip().split()[0]))
+                    elif 'Inference Time:' in line:
+                        timings['inference'].append(float(line.split(':')[1].strip().split()[0]))
+                    elif 'Post-processing Time:' in line:
+                        timings['postprocess'].append(float(line.split(':')[1].strip().split()[0]))
+                    elif 'Model Memory Usage:' in line:
+                        timings['model_memory'].append(float(line.split(':')[1].strip().split()[0]))
+                    elif 'Peak Memory Usage:' in line:
+                        timings['peak_memory'].append(float(line.split(':')[1].strip().split()[0]))
+            
+            timings['total'].append(total_time)
+            
+        except Exception as e:
+            print(f"Error in iteration {i+1}: {str(e)}")
+            continue
+    
+    # Calculate statistics
+    stats = {}
+    for key, values in timings.items():
+        if values:  # Only calculate if we have values
+            stats[key] = {
+                'mean': mean(values),
+                'std': stdev(values) if len(values) > 1 else 0,
+                'min': min(values),
+                'max': max(values)
+            }
+    
+    return stats
+
+def print_benchmark_stats(stats):
+    """Print benchmark statistics in a formatted table"""
+    print("\nBenchmark Statistics:")
+    print("-" * 80)
+    print(f"{'Metric':<20} {'Mean (s)':<12} {'Std Dev (s)':<12} {'Min (s)':<12} {'Max (s)':<12}")
+    print("-" * 80)
+    
+    for key in ['model_load', 'preprocess', 'inference', 'postprocess', 'total']:
+        if key in stats:
+            print(f"{key:<20} {stats[key]['mean']:<12.3f} {stats[key]['std']:<12.3f} "
+                  f"{stats[key]['min']:<12.3f} {stats[key]['max']:<12.3f}")
+    
+    print("\nMemory Usage Statistics:")
+    print("-" * 80)
+    print(f"{'Metric':<20} {'Mean (MB)':<12} {'Std Dev (MB)':<12} {'Min (MB)':<12} {'Max (MB)':<12}")
+    print("-" * 80)
+    
+    for key in ['model_memory', 'peak_memory']:
+        if key in stats:
+            print(f"{key:<20} {stats[key]['mean']:<12.1f} {stats[key]['std']:<12.1f} "
+                  f"{stats[key]['min']:<12.1f} {stats[key]['max']:<12.1f}")
 
 def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='output.png', benchmark=False):
     # Initialize model
@@ -155,17 +243,18 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
     print(f"Disparity map saved to {output_path}")
     
     if benchmark:
-        print("\nBenchmark Results:")
-        print(f"Model Loading Time: {model_load_time:.2f} seconds")
-        print(f"Preprocessing Time: {preprocess_time:.2f} seconds")
-        print(f"Inference Time: {inference_time:.2f} seconds")
-        print(f"Post-processing Time: {postprocess_time:.2f} seconds")
-        print(f"Total Processing Time: {(model_load_time + preprocess_time + inference_time + postprocess_time):.2f} seconds")
-        print(f"Model Memory Usage: {model_memory:.2f} MB")
-        print(f"Peak Memory Usage: {peak_memory:.2f} MB")
-        if torch.cuda.is_available():
-            print(f"GPU Memory Allocated: {torch.cuda.memory_allocated() / 1024 / 1024:.2f} MB")
-            print(f"GPU Memory Cached: {torch.cuda.memory_reserved() / 1024 / 1024:.2f} MB")
+        # Write benchmark results to a file for parsing
+        with open('benchmark_output.txt', 'w') as f:
+            f.write(f"Model Loading Time: {model_load_time:.2f} seconds\n")
+            f.write(f"Preprocessing Time: {preprocess_time:.2f} seconds\n")
+            f.write(f"Inference Time: {inference_time:.2f} seconds\n")
+            f.write(f"Post-processing Time: {postprocess_time:.2f} seconds\n")
+            f.write(f"Total Processing Time: {(model_load_time + preprocess_time + inference_time + postprocess_time):.2f} seconds\n")
+            f.write(f"Model Memory Usage: {model_memory:.2f} MB\n")
+            f.write(f"Peak Memory Usage: {peak_memory:.2f} MB\n")
+            if torch.cuda.is_available():
+                f.write(f"GPU Memory Allocated: {torch.cuda.memory_allocated() / 1024 / 1024:.2f} MB\n")
+                f.write(f"GPU Memory Cached: {torch.cuda.memory_reserved() / 1024 / 1024:.2f} MB\n")
     
     return disparity_np
 
@@ -177,6 +266,7 @@ def main():
     parser.add_argument('right_img', help='Path to the right image')
     parser.add_argument('--output', '-o', default='output.png', help='Output path for the disparity map (default: output.png)')
     parser.add_argument('--benchmark', '-b', action='store_true', help='Show benchmarking information')
+    parser.add_argument('--runs', '-r', type=int, default=5, help='Number of benchmark runs (default: 5)')
     
     args = parser.parse_args()
     
@@ -184,7 +274,11 @@ def main():
     print_cuda_properties()
     
     try:
-        process_stereo_pair(args.model_type, args.left_img, args.right_img, args.output, args.benchmark)
+        if args.benchmark:
+            stats = run_benchmark(args.model_type, args.left_img, args.right_img, args.runs)
+            print_benchmark_stats(stats)
+        else:
+            process_stereo_pair(args.model_type, args.left_img, args.right_img, args.output, args.benchmark)
     except Exception as e:
         print(f"Error: {str(e)}")
         return 1
