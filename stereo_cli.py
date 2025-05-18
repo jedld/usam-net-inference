@@ -54,7 +54,7 @@ def get_memory_usage():
     process = psutil.Process(os.getpid())
     return process.memory_info().rss / 1024 / 1024
 
-def run_benchmark(model_type, left_img_path, right_img_path, num_runs=5):
+def run_benchmark(model_type, left_img_path, right_img_path, num_runs=5, cpu_only=False):
     """Run multiple benchmarks and return statistics"""
     timings = {
         'model_load': [],
@@ -68,19 +68,19 @@ def run_benchmark(model_type, left_img_path, right_img_path, num_runs=5):
     
     # First run to load model and warm up
     print("Warming up...")
-    process_stereo_pair(model_type, left_img_path, right_img_path, 'warmup.png', benchmark=False)
+    process_stereo_pair(model_type, left_img_path, right_img_path, 'warmup.png', benchmark=False, cpu_only=cpu_only)
     
     print(f"\nRunning {num_runs} benchmark iterations...")
     for i in range(num_runs):
         print(f"\nIteration {i+1}/{num_runs}")
         try:
-            # Clear CUDA cache if available
-            if torch.cuda.is_available():
+            # Clear CUDA cache if available and not in CPU-only mode
+            if torch.cuda.is_available() and not cpu_only:
                 torch.cuda.empty_cache()
             
             # Run benchmark
             start_time = time.time()
-            process_stereo_pair(model_type, left_img_path, right_img_path, f'output_{i}.png', benchmark=True)
+            process_stereo_pair(model_type, left_img_path, right_img_path, f'output_{i}.png', benchmark=True, cpu_only=cpu_only)
             total_time = time.time() - start_time
             
             # Parse benchmark output
@@ -141,9 +141,13 @@ def print_benchmark_stats(stats):
             print(f"{key:<20} {stats[key]['mean']:<12.1f} {stats[key]['std']:<12.1f} "
                   f"{stats[key]['min']:<12.1f} {stats[key]['max']:<12.1f}")
 
-def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='output.png', benchmark=False):
+def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='output.png', benchmark=False, cpu_only=False):
     # Initialize model
-    device = torch.device('cuda' if torch.cuda.is_available() and model_type != 'base' else 'cpu')
+    if cpu_only:
+        device = torch.device('cpu')
+        print("Forcing CPU usage as requested")
+    else:
+        device = torch.device('cuda' if torch.cuda.is_available() and model_type != 'base' else 'cpu')
     print(f"Using device: {device}")
     
     # Memory usage before model loading
@@ -171,6 +175,8 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
         
         model.eval()
     elif model_type == 'stereoRT':
+        if cpu_only:
+            raise ValueError("TensorRT model cannot be used in CPU-only mode")
         if StereoRT is None:
             raise ImportError("TensorRT model is not available. Please install required dependencies.")
         model = StereoRT('model_trt_32.ts')
@@ -254,6 +260,7 @@ def main():
     parser.add_argument('--output', '-o', default='output.png', help='Output path for the disparity map (default: output.png)')
     parser.add_argument('--benchmark', '-b', action='store_true', help='Show benchmarking information')
     parser.add_argument('--runs', '-r', type=int, default=5, help='Number of benchmark runs (default: 5)')
+    parser.add_argument('--cpu-only', action='store_true', help='Force CPU usage even if CUDA is available')
     
     args = parser.parse_args()
     
@@ -262,10 +269,10 @@ def main():
     
     try:
         if args.benchmark:
-            stats = run_benchmark(args.model_type, args.left_img, args.right_img, args.runs)
+            stats = run_benchmark(args.model_type, args.left_img, args.right_img, args.runs, args.cpu_only)
             print_benchmark_stats(stats)
         else:
-            process_stereo_pair(args.model_type, args.left_img, args.right_img, args.output, args.benchmark)
+            process_stereo_pair(args.model_type, args.left_img, args.right_img, args.output, args.benchmark, args.cpu_only)
     except Exception as e:
         print(f"Error: {str(e)}")
         return 1
