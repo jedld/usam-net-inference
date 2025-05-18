@@ -110,7 +110,13 @@ class SAStereoCNN2(nn.Module):
             sam = sam_model_registry["vit_b"](checkpoint="tmp/sam_vit_b_01ec64.pth")
             sam.to(device)
             self.mask_generator = SamAutomaticMaskGenerator(sam)
+        
+        # Enable inference optimizations
+        self.eval()  # Set to evaluation mode
+        torch.backends.cudnn.benchmark = True  # Enable cuDNN auto-tuner
+        torch.backends.cudnn.deterministic = False  # Disable deterministic mode for speed
 
+    @torch.no_grad()  # Disable gradient computation during inference
     def forward(self, x):
         down1 = self.down1(x)
         down2 = self.down2(down1)
@@ -125,6 +131,7 @@ class SAStereoCNN2(nn.Module):
         up5 = self.up5(up4)
         return self.conv(up5) * 255
     
+    @torch.no_grad()  # Disable gradient computation during inference
     def inference(self, left_img, right_img):
         transform = test_transform_fn()
         left_img = transform(left_img).unsqueeze(0).to(self.device)

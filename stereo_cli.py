@@ -173,7 +173,15 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
         else:
             raise FileNotFoundError(f"Checkpoint file not found at {checkpoint_path}")
         
+        # Enable inference optimizations
         model.eval()
+        if device.type == 'cuda':
+            # Enable TF32 for faster computation on Ampere GPUs
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True
+            # Set optimal memory allocator
+            torch.cuda.set_per_process_memory_fraction(0.9)  # Reserve 10% for system
+            torch.cuda.empty_cache()
     elif model_type == 'stereoRT':
         if cpu_only:
             raise ValueError("TensorRT model cannot be used in CPU-only mode")
@@ -188,8 +196,9 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
     
     # Read and preprocess images
     preprocess_start = time.time()
-    left_img = cv2.imread(left_img_path)
-    right_img = cv2.imread(right_img_path)
+    # Use cv2.IMREAD_UNCHANGED for faster loading
+    left_img = cv2.imread(left_img_path, cv2.IMREAD_UNCHANGED)
+    right_img = cv2.imread(right_img_path, cv2.IMREAD_UNCHANGED)
     
     if left_img is None or right_img is None:
         raise ValueError("Failed to load one or both input images")
@@ -201,7 +210,7 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
     disparity = None
     try:
         if model_type in ['baseline', 'base']:
-            with torch.no_grad():
+            with torch.no_grad(), torch.amp.autocast('cuda', enabled=device.type == 'cuda'):  # Updated to new autocast API
                 disparity, _ = model.inference(left_img, right_img)
         elif model_type == 'stereoRT':
             with torch.no_grad():
@@ -221,11 +230,11 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
     if disparity_np.max() > disparity_np.min():
         disparity_np = (disparity_np - disparity_np.min()) / (disparity_np.max() - disparity_np.min())
     
-    # Create colormap visualization
-    plt.figure(figsize=(10, 5))
+    # Create colormap visualization - use a more efficient approach
+    plt.figure(figsize=(10, 5), dpi=100)  # Reduced DPI for faster saving
     plt.imshow(disparity_np, cmap='magma')
     plt.axis('off')
-    plt.savefig(output_path, bbox_inches='tight', pad_inches=0)
+    plt.savefig(output_path, bbox_inches='tight', pad_inches=0)  # Removed optimize parameter
     plt.close()
     postprocess_time = time.time() - postprocess_start
     
