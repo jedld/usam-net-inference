@@ -36,18 +36,6 @@ def print_cuda_properties():
         print("\nDetailed Device Properties:")
         print(f"Total Memory: {props.total_memory / 1024**2:.2f} MB")
         print(f"Multi-Processor Count: {props.multi_processor_count}")
-        print(f"Max Threads Per Block: {props.max_threads_per_block}")
-        print(f"Max Threads Per Multi-Processor: {props.max_threads_per_multi_processor}")
-        print(f"Max Block Dimensions: {props.max_block_dim_x} x {props.max_block_dim_y} x {props.max_block_dim_z}")
-        print(f"Max Grid Dimensions: {props.max_grid_dim_x} x {props.max_grid_dim_y} x {props.max_grid_dim_z}")
-        print(f"Warp Size: {props.warp_size}")
-        print(f"Clock Rate: {props.clock_rate / 1000:.2f} GHz")
-        print(f"Memory Clock Rate: {props.memory_clock_rate / 1000:.2f} GHz")
-        print(f"Memory Bus Width: {props.memory_bus_width} bits")
-        print(f"L2 Cache Size: {props.l2_cache_size / 1024:.2f} KB")
-        print(f"Compute Mode: {props.compute_mode}")
-        print(f"Is Integrated: {props.is_integrated}")
-        print(f"Is Multi GPU Board: {props.is_multi_gpu_board}")
         
         print("\nCurrent Memory Status:")
         print(f"Memory Allocated: {torch.cuda.memory_allocated(0) / 1024**2:.2f} MB")
@@ -58,7 +46,6 @@ def print_cuda_properties():
         print("\nCurrent Device Properties:")
         print(f"Device Name: {torch.cuda.get_device_name()}")
         print(f"Device Capability: {torch.cuda.get_device_capability()}")
-        print(f"Device Properties: {torch.cuda.get_device_properties()}")
     else:
         print("\nCUDA is not available. Running on CPU.")
 
