@@ -11,8 +11,14 @@ import os
 import time
 import psutil
 import gc
-from model_trt import StereoRT
-import torch_tensorrt
+try:
+    from model_trt import StereoRT
+    import torch_tensorrt
+    print("TensorRT model available")
+except ImportError:
+    print("TensorRT model not available")
+    StereoRT = None
+
 
 def print_cuda_properties():
     """Print important CUDA properties if CUDA is available"""
@@ -86,6 +92,8 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
         model.eval()
     elif model_type == 'stereoRT':
         model = StereoRT('model_trt_32.ts')
+    else:
+        raise ValueError(f"Unknown model type: {model_type}")
 
     model_load_time = time.time() - model_load_start
     model_memory = get_memory_usage() - initial_memory
@@ -98,17 +106,24 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
     if left_img is None or right_img is None:
         raise ValueError("Failed to load one or both input images")
 
-
     preprocess_time = time.time() - preprocess_start
     
     # Generate disparity map
     inference_start = time.time()
-    if model_type == 'baseline':
-        with torch.no_grad():
-            disparity, _ = model.inference(left_img, right_img)
-    elif model_type == 'stereoRT':
-        with torch.no_grad():
-            disparity = model.inference(left_img, right_img)
+    disparity = None
+    try:
+        if model_type == 'baseline':
+            with torch.no_grad():
+                disparity, _ = model.inference(left_img, right_img)
+        elif model_type == 'stereoRT':
+            with torch.no_grad():
+                disparity = model.inference(left_img, right_img)
+    except Exception as e:
+        raise RuntimeError(f"Error during model inference: {str(e)}")
+    
+    if disparity is None:
+        raise RuntimeError("Model inference failed to produce disparity map")
+        
     inference_time = time.time() - inference_start
     
     # Post-processing time
@@ -122,7 +137,7 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
     plt.figure(figsize=(10, 5))
     plt.imshow(disparity_np, cmap='magma')
     plt.axis('off')
-    #plt.savefig(output_path, bbox_inches='tight', pad_inches=0)
+    plt.savefig(output_path, bbox_inches='tight', pad_inches=0)
     plt.close()
     postprocess_time = time.time() - postprocess_start
     
