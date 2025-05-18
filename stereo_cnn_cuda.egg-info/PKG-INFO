@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: stereo_cnn_cuda
+Version: 0.1
+Summary: CUDA implementation of the Stereo CNN model
+Author: CUDA Stereo CNN
+Author-email: 
+License-File: LICENSE
+Requires-Dist: torch>=1.7.0
+Dynamic: author
+Dynamic: license-file
+Dynamic: requires-dist
+Dynamic: summary

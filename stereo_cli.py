@@ -14,6 +14,47 @@ import gc
 from model_trt import StereoRT
 import torch_tensorrt
 
+def print_cuda_properties():
+    """Print important CUDA properties if CUDA is available"""
+    if torch.cuda.is_available():
+        print("\nCUDA Properties:")
+        print(f"CUDA Version: {torch.version.cuda}")
+        print(f"Current Device: {torch.cuda.current_device()}")
+        print(f"Device Name: {torch.cuda.get_device_name(0)}")
+        print(f"Device Count: {torch.cuda.device_count()}")
+        print(f"Device Capability: {torch.cuda.get_device_capability(0)}")
+        
+        # Get detailed device properties
+        props = torch.cuda.get_device_properties(0)
+        print("\nDetailed Device Properties:")
+        print(f"Total Memory: {props.total_memory / 1024**2:.2f} MB")
+        print(f"Multi-Processor Count: {props.multi_processor_count}")
+        print(f"Max Threads Per Block: {props.max_threads_per_block}")
+        print(f"Max Threads Per Multi-Processor: {props.max_threads_per_multi_processor}")
+        print(f"Max Block Dimensions: {props.max_block_dim_x} x {props.max_block_dim_y} x {props.max_block_dim_z}")
+        print(f"Max Grid Dimensions: {props.max_grid_dim_x} x {props.max_grid_dim_y} x {props.max_grid_dim_z}")
+        print(f"Warp Size: {props.warp_size}")
+        print(f"Clock Rate: {props.clock_rate / 1000:.2f} GHz")
+        print(f"Memory Clock Rate: {props.memory_clock_rate / 1000:.2f} GHz")
+        print(f"Memory Bus Width: {props.memory_bus_width} bits")
+        print(f"L2 Cache Size: {props.l2_cache_size / 1024:.2f} KB")
+        print(f"Compute Mode: {props.compute_mode}")
+        print(f"Is Integrated: {props.is_integrated}")
+        print(f"Is Multi GPU Board: {props.is_multi_gpu_board}")
+        
+        print("\nCurrent Memory Status:")
+        print(f"Memory Allocated: {torch.cuda.memory_allocated(0) / 1024**2:.2f} MB")
+        print(f"Memory Reserved: {torch.cuda.memory_reserved(0) / 1024**2:.2f} MB")
+        print(f"Max Memory Allocated: {torch.cuda.max_memory_allocated(0) / 1024**2:.2f} MB")
+        
+        # Get current device properties
+        print("\nCurrent Device Properties:")
+        print(f"Device Name: {torch.cuda.get_device_name()}")
+        print(f"Device Capability: {torch.cuda.get_device_capability()}")
+        print(f"Device Properties: {torch.cuda.get_device_properties()}")
+    else:
+        print("\nCUDA is not available. Running on CPU.")
+
 def get_memory_usage():
     """Get current memory usage of the process in MB"""
     process = psutil.Process(os.getpid())
@@ -115,6 +156,9 @@ def main():
     parser.add_argument('--benchmark', '-b', action='store_true', help='Show benchmarking information')
     
     args = parser.parse_args()
+    
+    # Print CUDA properties at the start
+    print_cuda_properties()
     
     try:
         process_stereo_pair(args.model_type, args.left_img, args.right_img, args.output, args.benchmark)

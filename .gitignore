@@ -1,3 +1,6 @@
 __pycache__/
 output.png
 cantor_notebook/
+build/
+dist/
+*.pt
