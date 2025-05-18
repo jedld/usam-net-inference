@@ -1,7 +1,7 @@
 FROM dustynv/l4t-pytorch:r36.4.0
 
 RUN pip install --upgrade pip
-
+RUN pip install torch-tensorrt
 WORKDIR /app
 COPY requirements-jetson.txt /app/requirements-jetson.txt
 RUN pip install -r requirements-jetson.txt
