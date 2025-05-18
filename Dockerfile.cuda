@@ -4,7 +4,6 @@ RUN pip install --upgrade pip
 
 # Install Nsight Systems
 RUN apt-get update && \
-    apt-get install -y nsight-systems && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

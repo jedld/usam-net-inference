@@ -11,8 +11,6 @@ import os
 import time
 import psutil
 import gc
-from model_trt import StereoRT
-import torch_tensorrt
 
 def print_cuda_device_properties():
     """Print detailed information about CUDA devices if available"""
