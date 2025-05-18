@@ -1,9 +1,9 @@
-Model Loading Time: 0.10 seconds
+Model Loading Time: 0.13 seconds
 Preprocessing Time: 0.00 seconds
 Inference Time: 0.01 seconds
-Post-processing Time: 0.15 seconds
-Total Processing Time: 0.26 seconds
-Model Memory Usage: 7.75 MB
-Peak Memory Usage: 8.25 MB
+Post-processing Time: 0.16 seconds
+Total Processing Time: 0.31 seconds
+Model Memory Usage: 35.87 MB
+Peak Memory Usage: 54.91 MB
 GPU Memory Allocated: 125.30 MB
 GPU Memory Cached: 466.00 MB

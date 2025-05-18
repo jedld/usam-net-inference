@@ -150,6 +150,25 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
         device = torch.device('cuda' if torch.cuda.is_available() and model_type != 'base' else 'cpu')
     print(f"Using device: {device}")
     
+    # Check if we're running on Jetson Orin
+    is_jetson = False
+    if device.type == 'cuda':
+        device_props = torch.cuda.get_device_properties(0)
+        if device_props.major == 8 and device_props.minor == 7:  # Orin Nano
+            is_jetson = True
+            print("Detected Jetson Orin Nano - applying specific optimizations")
+            # Set optimal settings for Jetson
+            torch.backends.cuda.matmul.allow_tf32 = False  # Disable TF32 as it's not optimal for Orin
+            torch.backends.cudnn.benchmark = True
+            torch.backends.cudnn.enabled = True
+            # Set lower memory fraction for Jetson's shared memory architecture
+            torch.cuda.set_per_process_memory_fraction(0.7)  # More conservative memory usage
+            # Enable INT8 optimizations if available
+            if hasattr(torch, 'quantization'):
+                torch.quantization.observer.default_observer = torch.quantization.MinMaxObserver.with_args(
+                    dtype=torch.qint8, qscheme=torch.per_tensor_symmetric
+                )
+    
     # Memory usage before model loading
     initial_memory = get_memory_usage()
     
@@ -176,11 +195,11 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
         # Enable inference optimizations
         model.eval()
         if device.type == 'cuda':
-            # Enable TF32 for faster computation on Ampere GPUs
-            torch.backends.cuda.matmul.allow_tf32 = True
-            torch.backends.cudnn.allow_tf32 = True
-            # Set optimal memory allocator
-            torch.cuda.set_per_process_memory_fraction(0.9)  # Reserve 10% for system
+            if not is_jetson:
+                # Original RTX optimizations
+                torch.backends.cuda.matmul.allow_tf32 = True
+                torch.backends.cudnn.allow_tf32 = True
+                torch.cuda.set_per_process_memory_fraction(0.9)
             torch.cuda.empty_cache()
     elif model_type == 'stereoRT':
         if cpu_only:
@@ -210,8 +229,15 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
     disparity = None
     try:
         if model_type in ['baseline', 'base']:
-            with torch.no_grad(), torch.amp.autocast('cuda', enabled=device.type == 'cuda'):  # Updated to new autocast API
-                disparity, _ = model.inference(left_img, right_img)
+            with torch.no_grad():
+                if is_jetson:
+                    # Use FP16 for Jetson Orin
+                    with torch.amp.autocast('cuda', dtype=torch.float16):
+                        disparity, _ = model.inference(left_img, right_img)
+                else:
+                    # Original mixed precision for other GPUs
+                    with torch.amp.autocast('cuda', enabled=device.type == 'cuda'):
+                        disparity, _ = model.inference(left_img, right_img)
         elif model_type == 'stereoRT':
             with torch.no_grad():
                 disparity = model.inference(left_img, right_img)
