@@ -68,7 +68,7 @@ def get_memory_usage():
 
 def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='output.png', benchmark=False):
     # Initialize model
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() and model_type != 'base' else 'cpu')
     print(f"Using device: {device}")
     
     # Memory usage before model loading
@@ -76,7 +76,7 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
     
     # Model loading time
     model_load_start = time.time()
-    if model_type == 'baseline':
+    if model_type in ['baseline', 'base']:
         model = SAStereoCNN2(device)
         model.to(device)
         
@@ -84,16 +84,23 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
         checkpoint_path = 'stereo_cnn_stereo_cnn_sa_baseline.checkpoint'
         if os.path.exists(checkpoint_path):
             print("Loading model checkpoint...")
-            checkpoint = torch.load(checkpoint_path)
-            model.load_state_dict(checkpoint)
+            try:
+                # Try loading with map_location to handle GPU checkpoints
+                checkpoint = torch.load(checkpoint_path, map_location=device)
+                model.load_state_dict(checkpoint)
+                print(f"Successfully loaded checkpoint to {device}")
+            except Exception as e:
+                raise RuntimeError(f"Error loading checkpoint: {str(e)}")
         else:
             raise FileNotFoundError(f"Checkpoint file not found at {checkpoint_path}")
         
         model.eval()
     elif model_type == 'stereoRT':
+        if StereoRT is None:
+            raise ImportError("TensorRT model is not available. Please install required dependencies.")
         model = StereoRT('model_trt_32.ts')
     else:
-        raise ValueError(f"Unknown model type: {model_type}")
+        raise ValueError(f"Unknown model type: {model_type}. Use 'base', 'baseline', or 'stereoRT'")
 
     model_load_time = time.time() - model_load_start
     model_memory = get_memory_usage() - initial_memory
@@ -112,7 +119,7 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
     inference_start = time.time()
     disparity = None
     try:
-        if model_type == 'baseline':
+        if model_type in ['baseline', 'base']:
             with torch.no_grad():
                 disparity, _ = model.inference(left_img, right_img)
         elif model_type == 'stereoRT':
@@ -164,7 +171,8 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
 
 def main():
     parser = argparse.ArgumentParser(description='Generate disparity map from stereo image pair')
-    parser.add_argument('model_type', help='Model type: stereoRt or baseline')
+    parser.add_argument('model_type', choices=['base', 'baseline', 'stereoRT'], 
+                      help='Model type: base (CPU only), baseline (GPU if available), or stereoRT (TensorRT)')
     parser.add_argument('left_img', help='Path to the left image')
     parser.add_argument('right_img', help='Path to the right image')
     parser.add_argument('--output', '-o', default='output.png', help='Output path for the disparity map (default: output.png)')
