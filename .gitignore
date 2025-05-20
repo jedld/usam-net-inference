@@ -4,3 +4,4 @@ cantor_notebook/
 build/
 dist/
 *.pt
+*.ncu-rep

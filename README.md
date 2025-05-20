@@ -102,6 +102,10 @@ that it is of the following structure:
 │       └── right_masks
 ```
 
+## NSight
+
+./run_nsight_profile.sh baseline sample/left_images/2018-07-11-14-48-52_2018-07-11-14-50-22-775.jpg sample/right_images/2018-07-11-14-48-52_2018-07-11-14-50-22-775.jpg
+
 ## License
 
 MIT License
