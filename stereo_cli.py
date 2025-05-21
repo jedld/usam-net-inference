@@ -141,7 +141,7 @@ def print_benchmark_stats(stats):
             print(f"{key:<20} {stats[key]['mean']:<12.1f} {stats[key]['std']:<12.1f} "
                   f"{stats[key]['min']:<12.1f} {stats[key]['max']:<12.1f}")
 
-def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='output.png', benchmark=False, cpu_only=False):
+def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='output.png', benchmark=False, cpu_only=False, load_checkpoint=True):
     # Initialize model
     if cpu_only:
         device = torch.device('cpu')
@@ -175,22 +175,8 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
     # Model loading time
     model_load_start = time.time()
     if model_type in ['baseline', 'base']:
-        model = SAStereoCNN2(device)
+        model = SAStereoCNN2(device, load_checkpoint=load_checkpoint)
         model.to(device)
-        
-        # Load checkpoint
-        checkpoint_path = 'stereo_cnn_stereo_cnn_sa_baseline.checkpoint'
-        if os.path.exists(checkpoint_path):
-            print("Loading model checkpoint...")
-            try:
-                # Try loading with map_location to handle GPU checkpoints
-                checkpoint = torch.load(checkpoint_path, map_location=device)
-                model.load_state_dict(checkpoint)
-                print(f"Successfully loaded checkpoint to {device}")
-            except Exception as e:
-                raise RuntimeError(f"Error loading checkpoint: {str(e)}")
-        else:
-            raise FileNotFoundError(f"Checkpoint file not found at {checkpoint_path}")
         
         # Enable inference optimizations
         model.eval()
@@ -296,6 +282,7 @@ def main():
     parser.add_argument('--benchmark', '-b', action='store_true', help='Show benchmarking information')
     parser.add_argument('--runs', '-r', type=int, default=5, help='Number of benchmark runs (default: 5)')
     parser.add_argument('--cpu-only', action='store_true', help='Force CPU usage even if CUDA is available')
+    parser.add_argument('--no-checkpoint', action='store_true', help='Skip loading the model checkpoint')
     
     args = parser.parse_args()
     
@@ -307,7 +294,7 @@ def main():
             stats = run_benchmark(args.model_type, args.left_img, args.right_img, args.runs, args.cpu_only)
             print_benchmark_stats(stats)
         else:
-            process_stereo_pair(args.model_type, args.left_img, args.right_img, args.output, args.benchmark, args.cpu_only)
+            process_stereo_pair(args.model_type, args.left_img, args.right_img, args.output, args.benchmark, args.cpu_only, not args.no_checkpoint)
     except Exception as e:
         print(f"Error: {str(e)}")
         return 1
