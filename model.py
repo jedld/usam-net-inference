@@ -28,7 +28,8 @@ class SelfAttention(nn.Module):
         out = torch.bmm(value, attention.permute(0, 2, 1))
         out = out.view(batch_size, channels, height, width)
 
-        return out + x  # Skip connection
+        out.add_(x)  # Skip connection
+        return out
 
     def flops(self, x):
         batch_size, channels, height, width = x.size()
@@ -48,25 +49,25 @@ class SAStereoCNN2(nn.Module):
         super(SAStereoCNN2, self).__init__()
         self.down1 = nn.Sequential(
             nn.Conv2d(6, 64, kernel_size=3, stride=2, padding=1),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(inplace=True),
             nn.BatchNorm2d(64))
         self.down2 = nn.Sequential(
             nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(inplace=True),
             nn.BatchNorm2d(128))
         self.down3 = nn.Sequential(
             nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(inplace=True),
             nn.BatchNorm2d(256)
         )
         self.down4 = nn.Sequential(
             nn.Conv2d(256, 512, kernel_size=3, stride=2, padding=1),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(inplace=True),
             nn.BatchNorm2d(512)
         )
         self.down5 = nn.Sequential(
             nn.Conv2d(512, 1024, kernel_size=3, stride=2, padding=1),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(inplace=True),
             nn.BatchNorm2d(1024)
         )
 
@@ -74,34 +75,34 @@ class SAStereoCNN2(nn.Module):
 
         self.up1 = nn.Sequential(
             nn.ConvTranspose2d(1024, 512, kernel_size=3, stride=2, padding=1),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(inplace=True),
             nn.BatchNorm2d(512)
         )
         self.up2 = nn.Sequential(
             nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(inplace=True),
             nn.BatchNorm2d(256)
         )
         self.up3 = nn.Sequential(
             nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(inplace=True),
             nn.BatchNorm2d(128)
         )
         self.up4 = nn.Sequential(
             nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(inplace=True),
             nn.BatchNorm2d(64)
         )
         self.up5 = nn.Sequential(
             nn.ConvTranspose2d(64, 32, kernel_size=(4, 3), stride=2, padding=1),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(inplace=True),
             nn.BatchNorm2d(32)
         )
         self.conv = nn.Sequential(
             nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(inplace=True),
             nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(inplace=True),
             nn.Conv2d(64, 1, kernel_size=1, stride=1, padding=0),
             nn.Sigmoid()
         )
@@ -124,10 +125,14 @@ class SAStereoCNN2(nn.Module):
         down4 = self.down4(down3)
         down5 = self.down5(down4)
         sa = self.self_attention(down5)    
-        up1 = self.up1(sa) + down4
-        up2 = self.up2(up1) + down3
-        up3 = self.up3(up2) + down2
-        up4 = self.up4(up3) + down1
+        up1 = self.up1(sa)
+        up1.add_(down4)  # Inplace addition
+        up2 = self.up2(up1)
+        up2.add_(down3)  # Inplace addition
+        up3 = self.up3(up2)
+        up3.add_(down2)  # Inplace addition
+        up4 = self.up4(up3)
+        up4.add_(down1)  # Inplace addition
         up5 = self.up5(up4)
         return self.conv(up5) * 255
     
