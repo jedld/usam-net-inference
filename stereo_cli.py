@@ -178,19 +178,19 @@ def process_stereo_pair(model_type, left_img_path, right_img_path, output_path='
         model = SAStereoCNN2(device)
         model.to(device)
         
-        # Load checkpoint
-        checkpoint_path = 'stereo_cnn_stereo_cnn_sa_baseline.checkpoint'
-        if os.path.exists(checkpoint_path):
-            print("Loading model checkpoint...")
-            try:
-                # Try loading with map_location to handle GPU checkpoints
-                checkpoint = torch.load(checkpoint_path, map_location=device)
-                model.load_state_dict(checkpoint)
-                print(f"Successfully loaded checkpoint to {device}")
-            except Exception as e:
-                raise RuntimeError(f"Error loading checkpoint: {str(e)}")
-        else:
-            raise FileNotFoundError(f"Checkpoint file not found at {checkpoint_path}")
+        # Disable checkpoint loading
+        # checkpoint_path = 'stereo_cnn_stereo_cnn_sa_baseline.checkpoint'
+        # if os.path.exists(checkpoint_path):
+        #     print("Loading model checkpoint...")
+        #     try:
+        #         # Try loading with map_location to handle GPU checkpoints
+        #         checkpoint = torch.load(checkpoint_path, map_location=device)
+        #         model.load_state_dict(checkpoint)
+        #         print(f"Successfully loaded checkpoint to {device}")
+        #     except Exception as e:
+        #         raise RuntimeError(f"Error loading checkpoint: {str(e)}")
+        # else:
+        #     raise FileNotFoundError(f"Checkpoint file not found at {checkpoint_path}")
         
         # Enable inference optimizations
         model.eval()

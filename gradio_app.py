@@ -11,11 +11,11 @@ from PIL import Image
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = SAStereoCNN2(device)
 model.to(device)
-CHECKPOINT_PATH = 'stereo_cnn_stereo_cnn_sa_baseline.checkpoint'
-if os.path.exists(CHECKPOINT_PATH):
-    print("loading existing checkpoint ...")
-    checkpoint = torch.load(CHECKPOINT_PATH)
-    model.load_state_dict(checkpoint)
+# CHECKPOINT_PATH = 'stereo_cnn_stereo_cnn_sa_baseline.checkpoint'
+# if os.path.exists(CHECKPOINT_PATH):
+#     print("loading existing checkpoint ...")
+#     checkpoint = torch.load(CHECKPOINT_PATH)
+#     model.load_state_dict(checkpoint)
 model.eval()
 
 def process_stereo_images(left_img, right_img):

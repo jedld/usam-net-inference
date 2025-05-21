@@ -4,8 +4,8 @@ import torch
 import numpy as np
 
 # IMAGE_SHAPE = (800, 1762)
-IMAGE_SHAPE = (400, 879)
-IMAGE_SHAPE = (400, 879)
+# IMAGE_SHAPE = (400, 879)
+IMAGE_SHAPE = (384, 896)  # More efficient dimensions for GPU processing
 
 def transform_fn():
     return transforms.Compose([

@@ -73,7 +73,7 @@ class SAStereoCNN2(nn.Module):
         self.self_attention = SelfAttention(1024)
 
         self.up1 = nn.Sequential(
-            nn.ConvTranspose2d(1024, 512, kernel_size=3, stride=2, padding=1),
+            nn.ConvTranspose2d(1024, 512, kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(),
             nn.BatchNorm2d(512)
         )
@@ -93,7 +93,7 @@ class SAStereoCNN2(nn.Module):
             nn.BatchNorm2d(64)
         )
         self.up5 = nn.Sequential(
-            nn.ConvTranspose2d(64, 32, kernel_size=(4, 3), stride=2, padding=1),
+            nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(),
             nn.BatchNorm2d(32)
         )
